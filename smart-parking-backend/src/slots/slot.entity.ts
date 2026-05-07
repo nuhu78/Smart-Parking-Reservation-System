@@ -9,7 +9,7 @@ export enum SlotStatus {
 
 @Entity('slots')
 export class Slot {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('increment')
   id!: string;
 
   @Column()

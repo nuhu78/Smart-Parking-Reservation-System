@@ -9,7 +9,7 @@ export enum ReservationStatus {
 
 @Entity('reservations')
 export class Reservation {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('increment')
   id!: string;
 
   @CreateDateColumn()
