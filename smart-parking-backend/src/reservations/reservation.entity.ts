@@ -10,7 +10,7 @@ export enum ReservationStatus {
 @Entity('reservations')
 export class Reservation {
   @PrimaryGeneratedColumn('increment')
-  id!: string;
+  id!: number;
 
   @CreateDateColumn()
   bookingTime!: Date;

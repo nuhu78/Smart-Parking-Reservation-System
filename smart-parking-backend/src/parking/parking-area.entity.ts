@@ -5,7 +5,7 @@ import { Slot } from '../slots/slot.entity';
 @Entity('parking_areas')
 export class ParkingArea {
   @PrimaryGeneratedColumn('increment')
-  id!: string;
+  id!: number;
 
   @Column()
   name!: string;

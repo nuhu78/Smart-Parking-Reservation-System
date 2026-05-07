@@ -9,7 +9,7 @@ export enum UserRole {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('increment')
-  id!: string;
+  id!: number;
 
   @Column({ unique: true })
   email!: string;
