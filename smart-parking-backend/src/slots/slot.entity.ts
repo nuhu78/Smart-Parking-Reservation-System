@@ -1,4 +1,3 @@
-// src/slots/slot.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
 import { ParkingArea } from '../parking/parking-area.entity';
 import { Reservation } from '../reservations/reservation.entity';
@@ -11,18 +10,18 @@ export enum SlotStatus {
 @Entity('slots')
 export class Slot {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  slotNumber: string;
+  slotNumber!: string;
 
   @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.AVAILABLE })
-  status: SlotStatus;
+  status!: SlotStatus;
 
   // Many Slots -> One Parking Area
   @ManyToOne(() => ParkingArea, (parkingArea) => parkingArea.slots, { onDelete: 'CASCADE' })
-  parkingArea: ParkingArea;
+  parkingArea!: ParkingArea;
 
   @OneToMany(() => Reservation, (reservation) => reservation.slot)
-  reservations: Reservation[];
+  reservations!: Reservation[];
 }

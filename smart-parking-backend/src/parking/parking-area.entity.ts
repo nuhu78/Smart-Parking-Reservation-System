@@ -1,4 +1,4 @@
-// src/parking/parking-area.entity.ts
+
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Slot } from '../slots/slot.entity';
 
@@ -8,12 +8,12 @@ export class ParkingArea {
   id!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column()
-  location: string;
+  location!: string;
 
   // One Parking Area -> Many Slots
   @OneToMany(() => Slot, (slot) => slot.parkingArea)
-  slots: Slot[];
+  slots!: Slot[];
 }
