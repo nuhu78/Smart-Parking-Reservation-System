@@ -1,11 +1,13 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateSlotDto {
   @IsString()
   @IsNotEmpty()
   slotNumber!: string;
 
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsNotEmpty()
   parkingAreaId!: number; // Assuming you changed IDs to numbers in Part 3!
 }

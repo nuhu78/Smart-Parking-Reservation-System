@@ -14,9 +14,9 @@ export class ReservationsController {
     return this.reservationsService.reserveSlot(req.user.id, createReservationDto.slotId);
   }
 
-  @Get('my')
+@Get('my')
   findMyReservations(@Request() req: any) {
-    // CHANGE made here: req.user.id
+    // Make sure this says req.user.id (NOT req.user.sub)
     return this.reservationsService.findMyReservations(req.user.id);
   }
 
