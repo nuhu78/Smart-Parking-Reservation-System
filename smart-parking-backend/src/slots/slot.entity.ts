@@ -15,11 +15,10 @@ export class Slot {
   @Column()
   slotNumber!: string;
 
-  @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.AVAILABLE })
+ @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.AVAILABLE })
   status!: SlotStatus;
 
-  // Many Slots -> One Parking Area
-  @ManyToOne(() => ParkingArea, (parkingArea) => parkingArea.slots, { onDelete: 'CASCADE' })
+  // Many Slots -> One Parking Area  @ManyToOne(() => ParkingArea, (parkingArea) => parkingArea.slots, { onDelete: 'CASCADE' })
   parkingArea!: ParkingArea;
 
   @OneToMany(() => Reservation, (reservation) => reservation.slot)
