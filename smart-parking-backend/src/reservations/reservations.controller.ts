@@ -10,8 +10,8 @@ export class ReservationsController {
 
 @Post()
   reserveSlot(@Body() createReservationDto: CreateReservationDto, @Request() req: any) {
-    // CHANGE made here: req.user.id instead of req.user.sub
-    return this.reservationsService.reserveSlot(req.user.id, createReservationDto.slotId);
+    // We pass req.user here!
+    return this.reservationsService.reserveSlot(req.user, createReservationDto.slotId);
   }
 
 @Get('my')
@@ -20,9 +20,9 @@ export class ReservationsController {
     return this.reservationsService.findMyReservations(req.user.id);
   }
 
-  @Delete(':id')
+ @Delete(':id')
   cancelReservation(@Param('id') id: string, @Request() req: any) {
-    // CHANGE made here: req.user.id
-    return this.reservationsService.cancelReservation(+id, req.user.id);
+    // We pass req.user here!
+    return this.reservationsService.cancelReservation(+id, req.user);
   }
 }
