@@ -19,7 +19,7 @@ export class ReservationsService {
   async reserveSlot(user: any, slotId: number): Promise<Reservation> {
     
     // Step A: Find the slot
-    const slot = await this.slotsRepository.findOne({ where: { id: slotId } });
+    const slot = await this.slotsRepository.findOne({ where: { id: slotId }, relations: ['parkingArea'] });
 
     if (!slot) {
       throw new NotFoundException('Parking slot not found');
@@ -49,6 +49,7 @@ export class ReservationsService {
       user.email,
       user.fullName,
       slot.slotNumber,
+      slot.parkingArea.name,
       reservation.bookingTime,
     );
 
