@@ -37,4 +37,16 @@ export class SlotsService {
       relations: ['parkingArea'],
     });
   }
+  async update(id: number, updateData: any) {
+    await this.slotsRepository.update(id, updateData);
+    return this.slotsRepository.findOne({ where: { id } });
+  }
+
+  async remove(id: number) {
+    const slot = await this.slotsRepository.findOne({ where: { id } });
+    if (!slot) throw new NotFoundException('Slot not found');
+    
+    await this.slotsRepository.remove(slot);
+    return { message: 'Slot deleted successfully' };
+  }
 }

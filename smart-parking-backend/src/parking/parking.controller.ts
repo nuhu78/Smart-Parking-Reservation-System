@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Query, Patch, Delete, Param } from '@nestjs/common';
 import { ParkingService } from './parking.service';
 import { CreateParkingAreaDto } from './dto/create-parking-area.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -17,9 +17,26 @@ export class ParkingController {
     return this.parkingService.create(createParkingAreaDto);
   }
 
-  @Get()
-  // No @Roles decorator here means ANY logged-in user can view
-  findAll() {
-    return this.parkingService.findAll();
+@Get()
+  findAll(@Query('search') search?: string) { // <-- Catch the search query
+    return this.parkingService.findAll(search);
+  }
+  // 🔒 ADMIN ONLY: Update a location's name or details
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateData: any) {
+    return this.parkingService.update(+id, updateData);
+  }
+
+  // 🔒 ADMIN ONLY: Delete a location
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.parkingService.remove(+id);
   }
 }
+
+
+
