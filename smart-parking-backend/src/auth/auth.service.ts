@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UserRole } from '../users/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +30,27 @@ export class AuthService {
     // Remove password from the response
     const { password, ...result } = user;
     return result;
+  }
+
+  async registerAdmin(registerDto: RegisterDto) {
+    const existingUser = await this.usersService.findByEmail(registerDto.email);
+    if (existingUser) {
+      throw new ConflictException('Email already in use');
+    }
+
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+
+    const newAdmin = await this.usersService.create({
+      ...registerDto,
+      password: hashedPassword,
+      role: UserRole.ADMIN,
+    });
+
+    const { password, ...adminWithoutPassword } = newAdmin;
+    return {
+      message: 'Admin account created successfully',
+      user: adminWithoutPassword,
+    };
   }
 
   async login(loginDto: LoginDto) {

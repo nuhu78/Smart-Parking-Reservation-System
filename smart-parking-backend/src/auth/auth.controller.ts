@@ -18,6 +18,11 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
+  @Post('register-admin')
+  registerAdmin(@Body() registerDto: RegisterDto) {
+    return this.authService.registerAdmin(registerDto);
+  }
+
   // @UseGuards protects this route so only logged-in users can access it
   @UseGuards(JwtAuthGuard)
   @Get('me')
