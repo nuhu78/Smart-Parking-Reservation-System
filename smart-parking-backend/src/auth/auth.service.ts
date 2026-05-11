@@ -57,13 +57,13 @@ export class AuthService {
     const user = await this.usersService.findByEmail(loginDto.email);
     
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('this email is not registered');
     }
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
     
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('password is incorrect');
     }
 
     // Generate JWT token

@@ -8,6 +8,15 @@ async function bootstrap() {
   // Enable class-validator globally
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   
+  // During development allow requests from the frontend dev server.
+  // Using `origin: true` enables CORS for the requesting origin dynamically.
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
+  
   await app.listen(3000);
 }
 bootstrap();
