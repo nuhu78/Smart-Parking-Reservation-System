@@ -31,9 +31,8 @@ export class SlotsService {
     return this.slotsRepository.save(slot);
   }
 
-  async findAvailable(): Promise<Slot[]> {
+  async findAll(): Promise<Slot[]> {
     return this.slotsRepository.find({
-      where: { status: SlotStatus.AVAILABLE },
       relations: ['parkingArea'],
     });
   }

@@ -2,9 +2,25 @@ import { create } from 'zustand';
 import Cookies from 'js-cookie';
 
 export const useAuthStore = create((set) => ({
-  // Check if there is already a token when the app loads
-  user: Cookies.get('user') ? JSON.parse(Cookies.get('user')) : null,
-  token: Cookies.get('token') || null,
+  user: null,
+  token: null,
+
+  hydrateFromCookies: () => {
+    const token = Cookies.get('token') || null;
+    const userCookie = Cookies.get('user');
+
+    let user = null;
+
+    if (userCookie && userCookie !== 'undefined' && userCookie !== 'null') {
+      try {
+        user = JSON.parse(userCookie);
+      } catch {
+        user = null;
+      }
+    }
+
+    set({ user, token });
+  },
 
   login: (user, token) => {
     Cookies.set('token', token, { expires: 1 }); // Expires in 1 day

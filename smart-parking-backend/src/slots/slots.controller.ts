@@ -18,9 +18,9 @@ export class SlotsController {
   }
 
   @Get()
-  // Any logged-in user can view available slots
-  findAvailable() {
-    return this.slotsService.findAvailable();
+  // Any logged-in user can view all slots
+  findAll() {
+    return this.slotsService.findAll();
   }
   // 🔒 ADMIN ONLY: Update a slot (e.g., change status manually or change slot number)
   @UseGuards(JwtAuthGuard, RolesGuard)
