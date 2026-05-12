@@ -44,11 +44,14 @@ export default function Navbar() {
             ) : (
               /* If logged in, show their specific Dashboard and Logout */
               <>
-                {user.role === 'admin' ? (
-                  <Link href="/dashboard/admin" className="hover:text-green-400 transition font-medium">Admin Panel</Link>
-                ) : (
-                  <Link href="/dashboard/user" className="hover:text-green-400 transition font-medium">My Dashboard</Link>
-                )}
+               {user.role === 'admin' ? (
+  <Link href="/dashboard/admin" className="hover:text-green-400 transition font-medium">Admin Panel</Link>
+) : (
+  <>
+    <Link href="/dashboard/user" className="hover:text-green-400 transition font-medium">Book Parking</Link>
+    <Link href="/reservations" className="hover:text-green-400 transition font-medium ml-4">My Bookings</Link>
+  </>
+)}
                 
                 <span className="text-slate-400 mx-2">|</span>
                 <span className="text-sm text-slate-300 font-semibold hidden md:block">Hi, {user.fullName}</span>

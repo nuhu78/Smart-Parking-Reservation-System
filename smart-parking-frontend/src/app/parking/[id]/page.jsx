@@ -3,13 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function ParkingAreaDetails() {
   const { id } = useParams(); // Grabs the ID from the URL
   const router = useRouter();
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -33,6 +38,23 @@ export default function ParkingAreaDetails() {
 
     fetchSlots();
   }, [id]);
+
+  // The actual booking function!
+  const handleBookSlot = async () => {
+    try {
+      setIsBooking(true);
+      // Calls your backend, which triggers the email!
+      await api.post('/reservations', { slotId: selectedSlot.id });
+      setBookingSuccess(true);
+      
+      // Update the local state so the slot instantly turns red
+      setSlots(slots.map(s => s.id === selectedSlot.id ? { ...s, status: 'occupied' } : s));
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to book slot.');
+    } finally {
+      setIsBooking(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -74,7 +96,7 @@ export default function ParkingAreaDetails() {
                 `}
                 onClick={() => {
                   if (isAvailable) {
-                    alert(`You clicked slot ${slot.slotNumber}! Modal coming soon.`);
+                    setSelectedSlot(slot);
                   }
                 }}
               >
@@ -89,6 +111,49 @@ export default function ParkingAreaDetails() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* THE BOOKING MODAL */}
+      {selectedSlot && (
+        <div className="fixed inset-0 bg-slate-900/25 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full">
+            {!bookingSuccess ? (
+              <>
+                <h2 className="text-2xl font-bold text-slate-800 mb-4">Confirm Booking</h2>
+                <p className="text-slate-600 mb-6">
+                  Are you sure you want to reserve slot <strong>{selectedSlot.slotNumber}</strong>? An email confirmation will be sent to you.
+                </p>
+                <div className="flex space-x-4">
+                  <button 
+                    onClick={() => setSelectedSlot(null)}
+                    className="flex-1 bg-slate-200 text-slate-800 py-2 rounded hover:bg-slate-300 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleBookSlot}
+                    disabled={isBooking}
+                    className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition disabled:opacity-50"
+                  >
+                    {isBooking ? 'Booking...' : 'Confirm'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center">
+                <CheckCircle className="text-green-500 mx-auto mb-4" size={48} />
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">Success!</h2>
+                <p className="text-slate-600 mb-6">Your slot is booked. Check your email!</p>
+                <button 
+                  onClick={() => router.push('/reservations')}
+                  className="w-full bg-slate-800 text-white py-2 rounded hover:bg-slate-700 transition"
+                >
+                  View My Reservations
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
