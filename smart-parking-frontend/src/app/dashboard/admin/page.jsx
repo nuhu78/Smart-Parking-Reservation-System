@@ -1,13 +1,40 @@
-export default function AdminDashboardPage() {
+'use client';
+
+import Link from 'next/link';
+import { useAuthStore } from '@/store/authStore';
+import { Map, Grid, ShieldAlert } from 'lucide-react';
+
+export default function AdminDashboard() {
+  const { user } = useAuthStore();
+
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-4xl items-center justify-center px-4 py-16">
-      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-600">
-          Admin Dashboard
-        </p>
-        <h1 className="mt-3 text-3xl font-bold text-slate-900">
-          This is admin page
-        </h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-8 border-b pb-4 flex items-center text-slate-800">
+        <ShieldAlert className="mr-3 text-red-600" size={32} />
+        <div>
+          <h1 className="text-3xl font-bold">Admin Control Center</h1>
+          <p className="text-slate-600">Logged in as {user?.fullName}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {/* Manage Locations Card */}
+        <Link href="/dashboard/admin/locations">
+          <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200 hover:border-slate-800 hover:shadow-md transition cursor-pointer group">
+            <Map className="text-slate-400 group-hover:text-slate-800 mb-4" size={48} />
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Manage Locations</h2>
+            <p className="text-slate-600">Add, edit, or remove physical parking areas (e.g., North Campus).</p>
+          </div>
+        </Link>
+
+        {/* Manage Slots Card */}
+        <Link href="/dashboard/admin/slots">
+          <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200 hover:border-slate-800 hover:shadow-md transition cursor-pointer group">
+            <Grid className="text-slate-400 group-hover:text-slate-800 mb-4" size={48} />
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Manage Slots</h2>
+            <p className="text-slate-600">Generate new parking spaces and assign them to your locations.</p>
+          </div>
+        </Link>
       </div>
     </div>
   );
