@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Edit } from 'lucide-react'; // <-- Added Edit icon here
 
 export default function ManageLocations() {
   const [locations, setLocations] = useState([]);
+  
+  // Create Form State
   const [newLocationName, setNewLocationName] = useState('');
   const [newLocationAddress, setNewLocationAddress] = useState('');
+
+  // NEW: Edit Modal State
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editAddress, setEditAddress] = useState('');
 
   useEffect(() => {
     fetchLocations();
@@ -16,7 +23,8 @@ export default function ManageLocations() {
   const fetchLocations = async () => {
     try {
       const response = await api.get('/parking');
-      setLocations(response.data);
+      // Sort by ID so the list stays in order after an update
+      setLocations(response.data.sort((a, b) => a.id - b.id));
     } catch (error) {
       console.error('Failed to fetch locations', error);
     }
@@ -51,13 +59,31 @@ export default function ManageLocations() {
     }
   };
 
+  // NEW: Handle the Update submission
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!editName.trim() || !editAddress.trim()) return;
+    
+    try {
+      await api.patch(`/parking/${editingLocation.id}`, { 
+        name: editName,
+        location: editAddress 
+      });
+      setEditingLocation(null); // Close the modal
+      fetchLocations(); // Refresh the table with updated data
+    } catch (error) {
+      const message = error?.response?.data?.message;
+      alert(Array.isArray(message) ? message.join(', ') : message || 'Failed to update location');
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
       <h1 className="text-3xl font-bold text-slate-800 mb-8">Manage Parking Locations</h1>
 
       {/* Add New Location Form */}
       <form onSubmit={handleCreate} className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 flex flex-wrap gap-4 items-end">
-        <div className="flex-grow min-w-[220px]">
+        <div className="grow min-w-55">
           <label className="block text-sm font-medium text-slate-700 mb-1">New Location Name</label>
           <input 
             type="text" 
@@ -68,7 +94,7 @@ export default function ManageLocations() {
             required
           />
         </div>
-        <div className="flex-grow min-w-[220px]">
+        <div className="grow min-w-55">
           <label className="block text-sm font-medium text-slate-700 mb-1">Address / Area</label>
           <input
             type="text"
@@ -79,7 +105,7 @@ export default function ManageLocations() {
             required
           />
         </div>
-        <button type="submit" className="bg-slate-800 text-white px-6 py-2 rounded hover:bg-slate-700 transition flex items-center font-medium">
+        <button type="submit" className="bg-slate-800 text-white px-6 py-2 rounded hover:bg-slate-700 transition flex items-center font-medium h-[42px]">
           <Plus size={20} className="mr-2" /> Add Location
         </button>
       </form>
@@ -102,7 +128,25 @@ export default function ManageLocations() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{loc.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{loc.location}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => handleDelete(loc.id)} className="text-red-600 hover:text-red-900 ml-4">
+                  
+                  {/* NEW: Edit Button */}
+                  <button 
+                    onClick={() => {
+                      setEditingLocation(loc);
+                      setEditName(loc.name);
+                      setEditAddress(loc.location || ''); // Load existing address
+                    }} 
+                    className="text-blue-600 hover:text-blue-900 transition mr-4"
+                    title="Edit Location"
+                  >
+                    <Edit size={18} />
+                  </button>
+
+                  <button 
+                    onClick={() => handleDelete(loc.id)} 
+                    className="text-red-600 hover:text-red-900 transition"
+                    title="Delete Location"
+                  >
                     <Trash2 size={18} />
                   </button>
                 </td>
@@ -114,6 +158,52 @@ export default function ManageLocations() {
           </tbody>
         </table>
       </div>
+
+      {/* NEW: The Edit Modal */}
+      {editingLocation && (
+        <div className="fixed inset-0 bg-slate-900/25 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">Edit Location</h2>
+            <form onSubmit={handleUpdate}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Location Name</label>
+                <input 
+                  type="text" 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:outline-none"
+                  required
+                />
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Address / Area</label>
+                <input 
+                  type="text" 
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:outline-none"
+                  required
+                />
+              </div>
+              <div className="flex space-x-4">
+                <button 
+                  type="button"
+                  onClick={() => setEditingLocation(null)}
+                  className="flex-1 bg-slate-200 text-slate-800 py-2 rounded hover:bg-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

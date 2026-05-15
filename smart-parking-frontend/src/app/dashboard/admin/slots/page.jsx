@@ -2,15 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Edit } from 'lucide-react';
 
 export default function ManageSlots() {
   const [slots, setSlots] = useState([]);
   const [locations, setLocations] = useState([]);
   
-  // Form State
+  // Create Form State
   const [newSlotNumber, setNewSlotNumber] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
+
+  // NEW: Edit Modal State
+  const [editingSlot, setEditingSlot] = useState(null);
+  const [editSlotNumber, setEditSlotNumber] = useState('');
+  const [editStatus, setEditStatus] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -20,9 +25,9 @@ export default function ManageSlots() {
     try {
       const [slotsRes, locationsRes] = await Promise.all([
         api.get('/slots'),
-        api.get('/parking')
+        api.get('/parking') // Note: using your updated /parking endpoint
       ]);
-      setSlots(slotsRes.data.sort((a, b) => a.id - b.id)); // Sort by ID
+      setSlots(slotsRes.data.sort((a, b) => a.id - b.id)); 
       setLocations(locationsRes.data);
     } catch (error) {
       console.error('Failed to fetch data', error);
@@ -34,13 +39,12 @@ export default function ManageSlots() {
     if (!newSlotNumber.trim() || !selectedLocationId) return;
     
     try {
-      // Send slot details and the parent location ID
       await api.post('/slots', { 
         slotNumber: newSlotNumber, 
         parkingAreaId: parseInt(selectedLocationId) 
       });
       setNewSlotNumber('');
-      fetchData(); // Refresh the table
+      fetchData();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to create slot');
     }
@@ -57,8 +61,25 @@ export default function ManageSlots() {
     }
   };
 
+  // NEW: Handle the Update submission
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!editSlotNumber.trim()) return;
+    
+    try {
+      await api.patch(`/slots/${editingSlot.id}`, { 
+        slotNumber: editSlotNumber,
+        status: editStatus 
+      });
+      setEditingSlot(null); // Close modal
+      fetchData(); // Refresh table
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to update slot');
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
       <h1 className="text-3xl font-bold text-slate-800 mb-8">Manage Parking Slots</h1>
 
       {/* Add New Slot Form */}
@@ -84,7 +105,7 @@ export default function ManageSlots() {
             type="text" 
             value={newSlotNumber}
             onChange={(e) => setNewSlotNumber(e.target.value)}
-            placeholder="e.g., A-01, B-22"
+            placeholder="e.g., A-01"
             className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:outline-none"
             required
           />
@@ -112,14 +133,32 @@ export default function ManageSlots() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{slot.slotNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{slot.parkingArea?.name || 'Unknown'}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    slot.status === 'AVAILABLE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full uppercase ${
+                    slot.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
                     {slot.status}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => handleDelete(slot.id)} className="text-red-600 hover:text-red-900 ml-4">
+                  
+                  {/* NEW: Edit Button */}
+                  <button 
+                    onClick={() => {
+                      setEditingSlot(slot);
+                      setEditSlotNumber(slot.slotNumber);
+                      setEditStatus(slot.status);
+                    }} 
+                    className="text-blue-600 hover:text-blue-900 transition mr-4"
+                    title="Edit Slot"
+                  >
+                    <Edit size={18} />
+                  </button>
+
+                  <button 
+                    onClick={() => handleDelete(slot.id)} 
+                    className="text-red-600 hover:text-red-900 transition"
+                    title="Delete Slot"
+                  >
                     <Trash2 size={18} />
                   </button>
                 </td>
@@ -131,6 +170,54 @@ export default function ManageSlots() {
           </tbody>
         </table>
       </div>
+
+      {/* NEW: The Edit Modal (with background blur fix!) */}
+      {editingSlot && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">Edit Slot</h2>
+            <form onSubmit={handleUpdate}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Slot Number</label>
+                <input 
+                  type="text" 
+                  value={editSlotNumber}
+                  onChange={(e) => setEditSlotNumber(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:outline-none"
+                  required
+                />
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Manual Status Override</label>
+                <select 
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 bg-white"
+                >
+                  <option value="available">AVAILABLE</option>
+                  <option value="occupied">OCCUPIED</option>
+                </select>
+                <p className="text-xs text-slate-500 mt-1">Warning: Changing to AVAILABLE will not delete existing reservations.</p>
+              </div>
+              <div className="flex space-x-4">
+                <button 
+                  type="button"
+                  onClick={() => setEditingSlot(null)}
+                  className="flex-1 bg-slate-200 text-slate-800 py-2 rounded hover:bg-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
