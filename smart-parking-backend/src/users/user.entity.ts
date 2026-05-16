@@ -26,4 +26,10 @@ export class User {
   // One User -> Many Reservations
   @OneToMany(() => Reservation, (reservation) => reservation.user)
   reservations!: Reservation[];
+
+  @Column({ type: 'varchar', nullable: true })
+  resetPasswordCode!: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  resetPasswordExpires!: Date | null;
 }

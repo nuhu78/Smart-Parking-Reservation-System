@@ -22,4 +22,13 @@ export class MailService {
       context: { name, slotNumber },
     });
   }
+
+  async sendPasswordResetEmail(email: string, code: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Password Reset Code',
+      template: './password-reset',
+      context: { code },
+    });
+  }
 }
