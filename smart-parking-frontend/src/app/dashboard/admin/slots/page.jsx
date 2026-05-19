@@ -16,6 +16,7 @@ export default function ManageSlots() {
   const [editingSlot, setEditingSlot] = useState(null);
   const [editSlotNumber, setEditSlotNumber] = useState('');
   const [editStatus, setEditStatus] = useState('');
+  const [filterLocationId, setFilterLocationId] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -88,7 +89,10 @@ export default function ManageSlots() {
           <label className="block text-sm font-medium text-slate-700 mb-1">Assign to Location</label>
           <select 
             value={selectedLocationId}
-            onChange={(e) => setSelectedLocationId(e.target.value)}
+            onChange={(e) => {
+              setSelectedLocationId(e.target.value);
+              setFilterLocationId(e.target.value); // Also use Assign dropdown as the filter
+            }}
             className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 bg-white"
             required
           >
@@ -115,6 +119,7 @@ export default function ManageSlots() {
           <Plus size={20} className="mr-2" /> Create Slot
         </button>
       </form>
+      {/* Note: Removed separate "Filter by Location" control. The "Assign to Location" select above now also filters the list. */}
 
       {/* Slots Table */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -128,7 +133,11 @@ export default function ManageSlots() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
-            {slots.map((slot) => (
+            {filterLocationId && slots.map ? (
+              filterLocationId 
+                ? slots.filter(slot => slot.parkingArea?.id === parseInt(filterLocationId))
+                : slots
+            ).map((slot) => (
               <tr key={slot.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{slot.slotNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{slot.parkingArea?.name || 'Unknown'}</td>
@@ -163,8 +172,46 @@ export default function ManageSlots() {
                   </button>
                 </td>
               </tr>
-            ))}
-            {slots.length === 0 && (
+            )) : ((slots || []).map((slot) => (
+              <tr key={slot.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{slot.slotNumber}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{slot.parkingArea?.name || 'Unknown'}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full uppercase ${
+                    slot.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {slot.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  
+                  {/* NEW: Edit Button */}
+                  <button 
+                    onClick={() => {
+                      setEditingSlot(slot);
+                      setEditSlotNumber(slot.slotNumber);
+                      setEditStatus(slot.status);
+                    }} 
+                    className="text-blue-600 hover:text-blue-900 transition mr-4"
+                    title="Edit Slot"
+                  >
+                    <Edit size={18} />
+                  </button>
+
+                  <button 
+                    onClick={() => handleDelete(slot.id)} 
+                    className="text-red-600 hover:text-red-900 transition"
+                    title="Delete Slot"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))) }
+            {((filterLocationId 
+              ? slots.filter(slot => slot.parkingArea?.id === parseInt(filterLocationId))
+              : slots
+            ).length === 0) && (
               <tr><td colSpan="4" className="px-6 py-4 text-center text-slate-500">No slots found.</td></tr>
             )}
           </tbody>
@@ -198,6 +245,7 @@ export default function ManageSlots() {
                   <option value="occupied">OCCUPIED</option>
                 </select>
                 <p className="text-xs text-slate-500 mt-1">Warning: Changing to AVAILABLE will not delete existing reservations.</p>
+                              <p className="text-xs text-slate-500 mt-1">Warning: Changing to AVAILABLE will cancel any active reservations.</p>
               </div>
               <div className="flex space-x-4">
                 <button 

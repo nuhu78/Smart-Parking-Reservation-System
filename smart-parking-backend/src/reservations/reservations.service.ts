@@ -95,4 +95,28 @@ export class ReservationsService {
 
     return { message: 'Reservation successfully cancelled' };
   }
+
+  // ADMIN ONLY: Cancel any reservation by slot ID (used when admin manually frees a slot)
+  async cancelReservationBySlotId(slotId: number): Promise<{ message: string }> {
+    // Find any active reservation on this slot
+    const reservation = await this.reservationsRepository.findOne({
+      where: { slot: { id: slotId }, status: ReservationStatus.ACTIVE },
+      relations: ['slot', 'user'],
+    });
+
+    if (reservation) {
+      // Mark the reservation as cancelled
+      reservation.status = ReservationStatus.CANCELLED;
+      await this.reservationsRepository.save(reservation);
+
+      // Optionally: Send email to user about the cancellation
+      await this.mailService.sendReservationCancelled(
+        reservation.user.email,
+        reservation.user.fullName,
+        reservation.slot.slotNumber,
+      );
+    }
+
+    return { message: 'Reservation cancelled and slot freed' };
+  }
 }

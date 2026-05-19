@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Slot, SlotStatus } from './slot.entity';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { ParkingArea } from '../parking/parking-area.entity';
+import { Reservation, ReservationStatus } from '../reservations/reservation.entity';
 
 @Injectable()
 export class SlotsService {
@@ -13,6 +14,9 @@ export class SlotsService {
 
     @InjectRepository(ParkingArea)
     private parkingAreasRepository: Repository<ParkingArea>,
+
+    @InjectRepository(Reservation)
+    private reservationsRepository: Repository<Reservation>,
   ) {}
 
   async create(createSlotDto: CreateSlotDto): Promise<Slot> {
@@ -37,6 +41,18 @@ export class SlotsService {
     });
   }
   async update(id: number, updateData: any) {
+    // If admin is setting the slot to AVAILABLE, cancel any active reservation
+    if (updateData.status === SlotStatus.AVAILABLE) {
+      const reservation = await this.reservationsRepository.findOne({
+        where: { slot: { id }, status: ReservationStatus.ACTIVE },
+      });
+
+      if (reservation) {
+        reservation.status = ReservationStatus.CANCELLED;
+        await this.reservationsRepository.save(reservation);
+      }
+    }
+
     await this.slotsRepository.update(id, updateData);
     return this.slotsRepository.findOne({ where: { id } });
   }

@@ -86,8 +86,8 @@ export default function MyReservations() {
               <div className="space-y-3">
                 <div className="flex items-center text-slate-700">
                   <MapPin size={18} className="mr-2 text-slate-400" />
-                  {/* Pulling the location name we added to the backend earlier! */}
-                  <span className="font-medium">Slot {res.slot?.slotNumber}</span> 
+                  {/* Pulling the full location name and slot number */}
+                  <span className="font-medium">{res.slot?.parkingArea?.name} - Slot {res.slot?.slotNumber}</span> 
                 </div>
                 
                 <div className="flex items-center text-slate-700">
