@@ -10,6 +10,11 @@ export default function Navbar() {
   const router = useRouter();
   // Pull our global state
   const { user, logout, hydrateFromCookies } = useAuthStore();
+  const logoHref = user
+    ? user.role === 'admin'
+      ? '/dashboard/admin'
+      : '/dashboard/user'
+    : '/login';
 
   useEffect(() => {
     hydrateFromCookies();
@@ -26,7 +31,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           
           {/* Logo Section */}
-          <Link href="/" className="flex items-center space-x-2 text-green-400 hover:text-green-300 transition">
+          <Link href={logoHref} className="flex items-center space-x-2 text-green-400 hover:text-green-300 transition">
             <Car size={28} />
             <span className="font-bold text-xl tracking-wide">SmartPark</span>
           </Link>
