@@ -1,9 +1,9 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-// 1. Create a base Axios instance
+// Use the deployed backend URL when present, otherwise fall back to local development.
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // Points to your NestJS backend
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,7 +12,7 @@ const api = axios.create({
 // 2. Automatically attach the JWT token to every request
 api.interceptors.request.use(
   (config) => {
-    const token = Cookies.get('token'); // Grab token from cookies
+    const token = Cookies.get('token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
