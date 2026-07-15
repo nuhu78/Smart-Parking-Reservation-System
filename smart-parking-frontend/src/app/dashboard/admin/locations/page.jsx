@@ -24,7 +24,7 @@ export default function ManageLocations() {
     try {
       const response = await api.get('/parking');
       // Sort by ID so the list stays in order after an update
-      setLocations(response.data.sort((a, b) => a.id - b.id));
+      setLocations(response.data.data.sort((a, b) => a.id - b.id));
     } catch (error) {
       console.error('Failed to fetch locations', error);
     }

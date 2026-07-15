@@ -5,16 +5,27 @@ import { MailerService } from '@nestjs-modules/mailer';
 export class MailService {
   constructor(private mailerService: MailerService) {}
 
-  async sendReservationConfirmation(email: string, name: string, slotNumber: string, location: string, time: Date) {
+  async sendReservationConfirmation(
+    email: string,
+    name: string,
+    slotNumber: string,
+    location: string,
+    startTime: Date,
+    endTime: Date,
+  ) {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Reservation Confirmed',
-      template: './reservation-confirmed', 
-      context: { name, slotNumber, location, time }, 
+      template: './reservation-confirmed',
+      context: { name, slotNumber, location, startTime, endTime },
     });
   }
 
-  async sendReservationCancelled(email: string, name: string, slotNumber: string) {
+  async sendReservationCancelled(
+    email: string,
+    name: string,
+    slotNumber: string,
+  ) {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Reservation Cancelled',

@@ -19,7 +19,7 @@ export default function UserDashboard() {
         setLoading(true);
         // Using the search feature we discussed earlier!
         const response = await api.get(`/parking?search=${searchTerm}`);
-        setParkingAreas(response.data);
+        setParkingAreas(response.data.data);
       } catch (error) {
         console.error('Failed to fetch parking areas', error);
       } finally {

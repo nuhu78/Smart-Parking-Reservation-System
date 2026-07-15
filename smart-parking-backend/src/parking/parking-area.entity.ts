@@ -1,5 +1,10 @@
-
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  DeleteDateColumn,
+} from 'typeorm';
 import { Slot } from '../slots/slot.entity';
 
 @Entity('parking_areas')
@@ -13,7 +18,9 @@ export class ParkingArea {
   @Column()
   location!: string;
 
-  // One Parking Area -> Many Slots
+  @DeleteDateColumn()
+  deletedAt?: Date;
+
   @OneToMany(() => Slot, (slot) => slot.parkingArea)
   slots!: Slot[];
 }

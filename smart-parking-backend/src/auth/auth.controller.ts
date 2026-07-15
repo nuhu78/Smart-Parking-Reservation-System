@@ -1,7 +1,19 @@
-import { Controller, Post, Body, Get, Request, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Request,
+  UseGuards,
+  Patch,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -23,12 +35,10 @@ export class AuthController {
     return this.authService.registerAdmin(registerDto);
   }
 
-  // @UseGuards protects this route so only logged-in users can access it
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getProfile(@Request() req: any) {
-    // req.user is populated automatically by the JwtStrategy
-    return req.user; 
+    return req.user;
   }
 
   @Post('forgot-password')
@@ -38,12 +48,28 @@ export class AuthController {
     }
     return this.authService.forgotPassword(email);
   }
-  // PUBLIC: Submit the 6-digit code and new password
+
   @Post('reset-password')
-  async resetPassword(@Body() resetData: any) {
-    if (!resetData.email || !resetData.code || !resetData.newPassword) {
-      throw new BadRequestException('Email, code, and new password are required');
-    }
+  async resetPassword(@Body() resetData: ResetPasswordDto) {
     return this.authService.resetPassword(resetData);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    if (!dto.fullName) {
+      throw new BadRequestException('Full name is required');
+    }
+    return this.authService.updateProfile(req.user.id, dto.fullName);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(
+      req.user.id,
+      dto.oldPassword,
+      dto.newPassword,
+    );
   }
 }

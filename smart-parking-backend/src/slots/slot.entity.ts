@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+  DeleteDateColumn,
+} from 'typeorm';
 import { ParkingArea } from '../parking/parking-area.entity';
 import { Reservation } from '../reservations/reservation.entity';
 
@@ -15,10 +23,15 @@ export class Slot {
   @Column()
   slotNumber!: string;
 
- @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.AVAILABLE })
+  @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.AVAILABLE })
   status!: SlotStatus;
 
-  @ManyToOne(() => ParkingArea, (parkingArea) => parkingArea.slots, { onDelete: 'CASCADE' })
+  @DeleteDateColumn()
+  deletedAt?: Date;
+
+  @ManyToOne(() => ParkingArea, (parkingArea) => parkingArea.slots, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'parkingAreaId' })
   parkingArea!: ParkingArea;
 

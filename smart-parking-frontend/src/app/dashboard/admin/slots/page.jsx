@@ -29,7 +29,7 @@ export default function ManageSlots() {
         api.get('/parking') // Note: using your updated /parking endpoint
       ]);
       setSlots(slotsRes.data.sort((a, b) => a.id - b.id)); 
-      setLocations(locationsRes.data);
+      setLocations(locationsRes.data.data);
     } catch (error) {
       console.error('Failed to fetch data', error);
     }

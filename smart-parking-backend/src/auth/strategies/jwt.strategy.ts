@@ -17,7 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // This method is called if the token is valid. 
+  // This method is called if the token is valid.
   // Whatever we return here is attached to req.user
   async validate(payload: any) {
     const user = await this.usersService.findById(payload.sub);

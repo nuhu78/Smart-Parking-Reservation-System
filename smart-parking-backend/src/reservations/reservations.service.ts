@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository, LessThan, MoreThan } from 'typeorm';
 import { Reservation, ReservationStatus } from './reservation.entity';
 import { Slot, SlotStatus } from '../slots/slot.entity';
-import { MailService } from '../mail/mail.service'; // 1. We import the MailService here
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class ReservationsService {
@@ -12,64 +16,118 @@ export class ReservationsService {
     private reservationsRepository: Repository<Reservation>,
     @InjectRepository(Slot)
     private slotsRepository: Repository<Slot>,
-    private mailService: MailService, // 2. We inject the MailService into the constructor
+    private readonly dataSource: DataSource,
+    private mailService: MailService,
   ) {}
 
-  // 3. Notice we accept the full 'user' object now, not just the ID!
-  async reserveSlot(user: any, slotId: number): Promise<Reservation> {
-    
-    // Step A: Find the slot
-    const slot = await this.slotsRepository.findOne({ where: { id: slotId }, relations: ['parkingArea'] });
-
-    if (!slot) {
-      throw new NotFoundException('Parking slot not found');
+  async reserveSlot(
+    user: any,
+    slotId: number,
+    startTime: Date,
+    endTime: Date,
+  ): Promise<Reservation> {
+    if (startTime >= endTime) {
+      throw new BadRequestException('Start time must be before end time');
     }
 
-    // Step B: Check if it is available
-    if (slot.status === SlotStatus.OCCUPIED) {
-      throw new BadRequestException('This slot is already occupied');
+    const now = new Date();
+    if (startTime < now) {
+      throw new BadRequestException('Start time cannot be in the past');
     }
 
-    // Step C: Create the reservation (we use user.id to link it in the database)
-    const reservation = this.reservationsRepository.create({
-      user: { id: user.id }, 
-      slot: { id: slotId },
-      status: ReservationStatus.ACTIVE,
+    const maxDuration = 4 * 60 * 60 * 1000;
+    if (endTime.getTime() - startTime.getTime() > maxDuration) {
+      throw new BadRequestException(
+        'Reservation duration cannot exceed 4 hours',
+      );
+    }
+
+    const activeReservations = await this.reservationsRepository.count({
+      where: { user: { id: user.id }, status: ReservationStatus.ACTIVE },
     });
+    if (activeReservations >= 1) {
+      throw new BadRequestException('You already have an active reservation');
+    }
 
-    await this.reservationsRepository.save(reservation);
+    return this.dataSource.transaction(async (manager) => {
+      const slot = await manager.findOne(Slot, {
+        where: { id: slotId },
+        relations: ['parkingArea'],
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    // Step D: Update the slot status to OCCUPIED
-    slot.status = SlotStatus.OCCUPIED;
-    await this.slotsRepository.save(slot);
+      if (!slot) {
+        throw new NotFoundException('Parking slot not found');
+      }
 
-    // 🔥 Step E: SEND CONFIRMATION EMAIL 🔥
-    // We can pull the email and fullName directly from the user object!
-    await this.mailService.sendReservationConfirmation(
-      user.email,
-      user.fullName,
-      slot.slotNumber,
-      slot.parkingArea.name,
-      reservation.bookingTime,
-    );
+      if (slot.status === SlotStatus.OCCUPIED) {
+        throw new BadRequestException('This slot is already occupied');
+      }
 
-    return reservation;
+      const overlapping = await manager.findOne(Reservation, {
+        where: {
+          slot: { id: slotId },
+          status: ReservationStatus.ACTIVE,
+          startTime: LessThan(endTime),
+          endTime: MoreThan(startTime),
+        },
+      });
+      if (overlapping) {
+        throw new BadRequestException(
+          'Slot is already booked for the requested time period',
+        );
+      }
+
+      const expiresAt = new Date(startTime.getTime() + 30 * 60 * 1000);
+
+      const reservation = manager.create(Reservation, {
+        user: { id: user.id },
+        slot: { id: slotId },
+        startTime,
+        endTime,
+        expiresAt,
+        status: ReservationStatus.ACTIVE,
+      });
+
+      await manager.save(reservation);
+
+      await manager.update(Slot, slotId, { status: SlotStatus.OCCUPIED });
+
+      try {
+        await this.mailService.sendReservationConfirmation(
+          user.email,
+          user.fullName,
+          slot.slotNumber,
+          slot.parkingArea.name,
+          startTime,
+          endTime,
+        );
+      } catch (err) {
+        console.error('Failed to send confirmation email', err);
+      }
+
+      return reservation;
+    });
   }
 
-  // (This method stays exactly the same)
   async findMyReservations(userId: number): Promise<Reservation[]> {
     return this.reservationsRepository.find({
       where: { user: { id: userId } },
-      relations: ['slot', 'slot.parkingArea'], 
+      relations: ['slot', 'slot.parkingArea'],
+      order: { startTime: 'DESC' },
     });
   }
 
-  // 4. Again, we accept the full 'user' object here so we know who to email
-  async cancelReservation(reservationId: number, user: any): Promise<{ message: string }> {
-    
-    // Step A: Find the active reservation
+  async cancelReservation(
+    reservationId: number,
+    user: any,
+  ): Promise<{ message: string }> {
     const reservation = await this.reservationsRepository.findOne({
-      where: { id: reservationId, user: { id: user.id }, status: ReservationStatus.ACTIVE },
+      where: {
+        id: reservationId,
+        user: { id: user.id },
+        status: ReservationStatus.ACTIVE,
+      },
       relations: ['slot'],
     });
 
@@ -77,46 +135,87 @@ export class ReservationsService {
       throw new NotFoundException('Active reservation not found');
     }
 
-    // Step B: Change reservation status to CANCELLED
+    if (reservation.startTime <= new Date()) {
+      throw new BadRequestException(
+        'Cannot cancel a reservation that has already started',
+      );
+    }
+
     reservation.status = ReservationStatus.CANCELLED;
     await this.reservationsRepository.save(reservation);
 
-    // Step C: Free up the parking slot
     const slot = reservation.slot;
     slot.status = SlotStatus.AVAILABLE;
     await this.slotsRepository.save(slot);
 
-    // 🔥 Step D: SEND CANCELLATION EMAIL 🔥
-    await this.mailService.sendReservationCancelled(
-      user.email,
-      user.fullName,
-      slot.slotNumber,
-    );
+    try {
+      await this.mailService.sendReservationCancelled(
+        user.email,
+        user.fullName,
+        slot.slotNumber,
+      );
+    } catch (err) {
+      console.error('Failed to send cancellation email', err);
+    }
 
     return { message: 'Reservation successfully cancelled' };
   }
 
-  // ADMIN ONLY: Cancel any reservation by slot ID (used when admin manually frees a slot)
-  async cancelReservationBySlotId(slotId: number): Promise<{ message: string }> {
-    // Find any active reservation on this slot
+  async cancelReservationBySlotId(
+    slotId: number,
+  ): Promise<{ message: string }> {
     const reservation = await this.reservationsRepository.findOne({
       where: { slot: { id: slotId }, status: ReservationStatus.ACTIVE },
       relations: ['slot', 'user'],
     });
 
     if (reservation) {
-      // Mark the reservation as cancelled
       reservation.status = ReservationStatus.CANCELLED;
       await this.reservationsRepository.save(reservation);
 
-      // Optionally: Send email to user about the cancellation
-      await this.mailService.sendReservationCancelled(
-        reservation.user.email,
-        reservation.user.fullName,
-        reservation.slot.slotNumber,
-      );
+      try {
+        await this.mailService.sendReservationCancelled(
+          reservation.user.email,
+          reservation.user.fullName,
+          reservation.slot.slotNumber,
+        );
+      } catch (err) {
+        console.error('Failed to send cancellation email', err);
+      }
     }
 
     return { message: 'Reservation cancelled and slot freed' };
+  }
+
+  async findAll(status?: ReservationStatus): Promise<Reservation[]> {
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
+    return this.reservationsRepository.find({
+      where,
+      relations: ['user', 'slot', 'slot.parkingArea'],
+      order: { startTime: 'DESC' },
+    });
+  }
+
+  async expireOverdueReservations(): Promise<number> {
+    const now = new Date();
+    const overdue = await this.reservationsRepository.find({
+      where: {
+        status: ReservationStatus.ACTIVE,
+        endTime: LessThan(now),
+      },
+      relations: ['slot'],
+    });
+
+    for (const reservation of overdue) {
+      reservation.status = ReservationStatus.EXPIRED;
+      await this.reservationsRepository.save(reservation);
+      reservation.slot.status = SlotStatus.AVAILABLE;
+      await this.slotsRepository.save(reservation.slot);
+    }
+
+    return overdue.length;
   }
 }

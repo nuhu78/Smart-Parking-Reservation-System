@@ -44,7 +44,10 @@ export default function ParkingAreaDetails() {
     try {
       setIsBooking(true);
       // Calls your backend, which triggers the email!
-      await api.post('/reservations', { slotId: selectedSlot.id });
+      const now = new Date();
+      const startTime = now.toISOString();
+      const endTime = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+      await api.post('/reservations', { slotId: selectedSlot.id, startTime, endTime });
       setBookingSuccess(true);
       
       // Update the local state so the slot instantly turns red
