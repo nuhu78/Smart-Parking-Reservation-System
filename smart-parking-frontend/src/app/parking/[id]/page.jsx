@@ -45,8 +45,8 @@ export default function ParkingAreaDetails() {
       setIsBooking(true);
       // Calls your backend, which triggers the email!
       const now = new Date();
-      const startTime = now.toISOString();
-      const endTime = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+      const startTime = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+      const endTime = new Date(now.getTime() + 65 * 60 * 1000).toISOString();
       await api.post('/reservations', { slotId: selectedSlot.id, startTime, endTime });
       setBookingSuccess(true);
       
