@@ -13,13 +13,13 @@ export class Reservation {
   @PrimaryGeneratedColumn('increment')
   id!: number;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: true })
   startTime!: Date;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: true })
   endTime!: Date;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: true })
   expiresAt!: Date;
 
   @Column({
