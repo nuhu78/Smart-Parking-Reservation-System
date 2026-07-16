@@ -144,13 +144,22 @@ export class AuthService {
     };
   }
 
-  async updateProfile(userId: number, fullName: string) {
+  async updateProfile(
+    userId: number,
+    fullName?: string,
+    phoneNumber?: string,
+    defaultVehicleNumber?: string,
+  ) {
     const user = await this.usersService.findById(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    user.fullName = fullName;
+    if (fullName !== undefined) user.fullName = fullName;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    if (defaultVehicleNumber !== undefined)
+      user.defaultVehicleNumber = defaultVehicleNumber;
+
     await this.usersService.save(user);
 
     const { password, resetPasswordCode, resetPasswordExpires, ...result } =

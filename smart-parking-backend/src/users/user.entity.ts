@@ -27,6 +27,12 @@ export class User {
   @OneToMany(() => Reservation, (reservation) => reservation.user)
   reservations!: Reservation[];
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phoneNumber?: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  defaultVehicleNumber?: string;
+
   @Column({ type: 'varchar', nullable: true })
   resetPasswordCode!: string | null;
 

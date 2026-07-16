@@ -18,6 +18,9 @@ export class ParkingArea {
   @Column()
   location!: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  pricePerHour!: number;
+
   @DeleteDateColumn()
   deletedAt?: Date;
 

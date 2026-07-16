@@ -5,7 +5,13 @@ import { Slot } from '../slots/slot.entity';
 export enum ReservationStatus {
   ACTIVE = 'active',
   CANCELLED = 'cancelled',
+  COMPLETED = 'completed',
   EXPIRED = 'expired',
+}
+
+export enum VehicleType {
+  TWO_WHEELER = 'two_wheeler',
+  FOUR_WHEELER = 'four_wheeler',
 }
 
 @Entity('reservations')
@@ -28,6 +34,19 @@ export class Reservation {
     default: ReservationStatus.ACTIVE,
   })
   status!: ReservationStatus;
+
+  @Column({ type: 'varchar', length: 20 })
+  vehicleNumber!: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phoneNumber?: string;
+
+  @Column({
+    type: 'enum',
+    enum: VehicleType,
+    default: VehicleType.FOUR_WHEELER,
+  })
+  vehicleType!: VehicleType;
 
   @ManyToOne(() => User, (user) => user.reservations, { onDelete: 'CASCADE' })
   user!: User;

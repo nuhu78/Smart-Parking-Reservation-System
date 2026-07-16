@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateSlotDto {
   @IsString()
@@ -9,5 +9,10 @@ export class CreateSlotDto {
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
-  parkingAreaId!: number; // Assuming you changed IDs to numbers in Part 3!
+  parkingAreaId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  floor?: number;
 }

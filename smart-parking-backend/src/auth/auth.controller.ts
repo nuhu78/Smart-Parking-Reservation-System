@@ -57,10 +57,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('profile')
   async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
-    if (!dto.fullName) {
-      throw new BadRequestException('Full name is required');
-    }
-    return this.authService.updateProfile(req.user.id, dto.fullName);
+    return this.authService.updateProfile(
+      req.user.id,
+      dto.fullName,
+      dto.phoneNumber,
+      dto.defaultVehicleNumber,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

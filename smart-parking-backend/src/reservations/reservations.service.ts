@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Reservation, ReservationStatus } from './reservation.entity';
@@ -15,7 +19,15 @@ export class ReservationsService {
     private mailService: MailService,
   ) {}
 
-  async reserveSlot(user: any, slotId: number, startTime: Date, endTime: Date): Promise<Reservation> {
+  async reserveSlot(
+    user: any,
+    slotId: number,
+    startTime: Date,
+    endTime: Date,
+    vehicleNumber: string,
+    phoneNumber?: string,
+    vehicleType?: string,
+  ): Promise<Reservation> {
     if (startTime >= endTime) {
       throw new BadRequestException('Start time must be before end time');
     }
@@ -27,7 +39,9 @@ export class ReservationsService {
 
     const maxDuration = 4 * 60 * 60 * 1000;
     if (endTime.getTime() - startTime.getTime() > maxDuration) {
-      throw new BadRequestException('Reservation duration cannot exceed 4 hours');
+      throw new BadRequestException(
+        'Reservation duration cannot exceed 4 hours',
+      );
     }
 
     const activeCount = await this.reservationsRepository.count({
@@ -59,7 +73,9 @@ export class ReservationsService {
       },
     });
     if (overlapping) {
-      throw new BadRequestException('Slot is already booked for the requested time period');
+      throw new BadRequestException(
+        'Slot is already booked for the requested time period',
+      );
     }
 
     const expiresAt = new Date(startTime.getTime() + 30 * 60 * 1000);
@@ -71,6 +87,9 @@ export class ReservationsService {
       endTime,
       expiresAt,
       status: ReservationStatus.ACTIVE,
+      vehicleNumber,
+      phoneNumber: phoneNumber || null,
+      vehicleType: (vehicleType as any) || 'four_wheeler',
     });
 
     await this.reservationsRepository.save(reservation);
@@ -101,9 +120,16 @@ export class ReservationsService {
     });
   }
 
-  async cancelReservation(reservationId: number, user: any): Promise<{ message: string }> {
+  async cancelReservation(
+    reservationId: number,
+    user: any,
+  ): Promise<{ message: string }> {
     const reservation = await this.reservationsRepository.findOne({
-      where: { id: reservationId, user: { id: user.id }, status: ReservationStatus.ACTIVE },
+      where: {
+        id: reservationId,
+        user: { id: user.id },
+        status: ReservationStatus.ACTIVE,
+      },
       relations: ['slot'],
     });
 
@@ -112,13 +138,17 @@ export class ReservationsService {
     }
 
     if (reservation.startTime <= new Date()) {
-      throw new BadRequestException('Cannot cancel a reservation that has already started');
+      throw new BadRequestException(
+        'Cannot cancel a reservation that has already started',
+      );
     }
 
     reservation.status = ReservationStatus.CANCELLED;
     await this.reservationsRepository.save(reservation);
 
-    await this.slotsRepository.update(reservation.slot.id, { status: SlotStatus.AVAILABLE });
+    await this.slotsRepository.update(reservation.slot.id, {
+      status: SlotStatus.AVAILABLE,
+    });
 
     try {
       await this.mailService.sendReservationCancelled(
@@ -133,7 +163,9 @@ export class ReservationsService {
     return { message: 'Reservation successfully cancelled' };
   }
 
-  async cancelReservationBySlotId(slotId: number): Promise<{ message: string }> {
+  async cancelReservationBySlotId(
+    slotId: number,
+  ): Promise<{ message: string }> {
     const reservation = await this.reservationsRepository.findOne({
       where: { slot: { id: slotId }, status: ReservationStatus.ACTIVE },
       relations: ['slot', 'user'],
@@ -169,9 +201,13 @@ export class ReservationsService {
     });
   }
 
-  async expireOverdueReservations(): Promise<number> {
+  async expireOverdueReservations(): Promise<{
+    completed: number;
+    expired: number;
+  }> {
     const now = new Date();
-    const overdue = await this.reservationsRepository.find({
+
+    const completed = await this.reservationsRepository.find({
       where: {
         status: ReservationStatus.ACTIVE,
         endTime: LessThan(now),
@@ -179,12 +215,30 @@ export class ReservationsService {
       relations: ['slot'],
     });
 
-    for (const reservation of overdue) {
-      reservation.status = ReservationStatus.EXPIRED;
+    for (const reservation of completed) {
+      reservation.status = ReservationStatus.COMPLETED;
       await this.reservationsRepository.save(reservation);
-      await this.slotsRepository.update(reservation.slot.id, { status: SlotStatus.AVAILABLE });
+      await this.slotsRepository.update(reservation.slot.id, {
+        status: SlotStatus.AVAILABLE,
+      });
     }
 
-    return overdue.length;
+    const noShows = await this.reservationsRepository.find({
+      where: {
+        status: ReservationStatus.ACTIVE,
+        expiresAt: LessThan(now),
+      },
+      relations: ['slot'],
+    });
+
+    for (const reservation of noShows) {
+      reservation.status = ReservationStatus.EXPIRED;
+      await this.reservationsRepository.save(reservation);
+      await this.slotsRepository.update(reservation.slot.id, {
+        status: SlotStatus.AVAILABLE,
+      });
+    }
+
+    return { completed: completed.length, expired: noShows.length };
   }
 }

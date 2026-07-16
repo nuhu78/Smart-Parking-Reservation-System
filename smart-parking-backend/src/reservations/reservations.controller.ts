@@ -29,6 +29,9 @@ export class ReservationsController {
       dto.slotId,
       new Date(dto.startTime),
       new Date(dto.endTime),
+      dto.vehicleNumber,
+      dto.phoneNumber,
+      dto.vehicleType,
     );
   }
 

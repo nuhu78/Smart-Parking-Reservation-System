@@ -26,6 +26,9 @@ export class Slot {
   @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.AVAILABLE })
   status!: SlotStatus;
 
+  @Column({ type: 'int', nullable: true, default: 0 })
+  floor?: number;
+
   @DeleteDateColumn()
   deletedAt?: Date;
 
