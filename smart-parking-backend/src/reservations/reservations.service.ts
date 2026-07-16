@@ -96,18 +96,14 @@ export class ReservationsService {
 
     await this.slotsRepository.update(slotId, { status: SlotStatus.OCCUPIED });
 
-    try {
-      await this.mailService.sendReservationConfirmation(
-        user.email,
-        user.fullName,
-        slot.slotNumber,
-        slot.parkingArea.name,
-        startTime,
-        endTime,
-      );
-    } catch (err) {
-      console.error('Failed to send confirmation email', err);
-    }
+    this.mailService.sendReservationConfirmation(
+      user.email,
+      user.fullName,
+      slot.slotNumber,
+      slot.parkingArea.name,
+      startTime,
+      endTime,
+    ).catch((err) => console.error('Failed to send confirmation email', err));
 
     return reservation;
   }
@@ -150,15 +146,11 @@ export class ReservationsService {
       status: SlotStatus.AVAILABLE,
     });
 
-    try {
-      await this.mailService.sendReservationCancelled(
-        user.email,
-        user.fullName,
-        reservation.slot.slotNumber,
-      );
-    } catch (err) {
-      console.error('Failed to send cancellation email', err);
-    }
+    this.mailService.sendReservationCancelled(
+      user.email,
+      user.fullName,
+      reservation.slot.slotNumber,
+    ).catch((err) => console.error('Failed to send cancellation email', err));
 
     return { message: 'Reservation successfully cancelled' };
   }
