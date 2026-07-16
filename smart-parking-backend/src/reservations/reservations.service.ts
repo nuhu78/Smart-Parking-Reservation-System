@@ -88,7 +88,7 @@ export class ReservationsService {
       expiresAt,
       status: ReservationStatus.ACTIVE,
       vehicleNumber,
-      phoneNumber: phoneNumber || null,
+      phoneNumber: phoneNumber || undefined,
       vehicleType: (vehicleType as any) || 'four_wheeler',
     });
 
