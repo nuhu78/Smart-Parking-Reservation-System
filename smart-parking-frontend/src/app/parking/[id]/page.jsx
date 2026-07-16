@@ -46,12 +46,12 @@ export default function ParkingAreaDetails() {
   const now = new Date();
   const defaultStart = new Date(now.getTime() + 10 * 60 * 1000);
   const [startTime, setStartTime] = useState(toLocalDateTimeString(defaultStart));
-  const [duration, setDuration] = useState(2);
+  const [duration, setDuration] = useState(60);
   const [vehicleType, setVehicleType] = useState('four_wheeler');
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [fullName, setFullName] = useState(user?.fullName || '');
-  const [vehicleNumber, setVehicleNumber] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState(user?.defaultVehicleNumber || '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [activeFloor, setActiveFloor] = useState('G');
   const [activeSection, setActiveSection] = useState('A');
   const [timeError, setTimeError] = useState('');
@@ -60,11 +60,11 @@ export default function ParkingAreaDetails() {
 
   const endTime = useMemo(() => {
     const s = new Date(startTime);
-    return new Date(s.getTime() + duration * 60 * 60 * 1000);
+    return new Date(s.getTime() + duration * 60 * 1000);
   }, [startTime, duration]);
 
   const pricePerHour = area?.pricePerHour ? parseFloat(area.pricePerHour) : 5;
-  const total = pricePerHour * duration;
+  const total = pricePerHour * (duration / 60);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -229,7 +229,7 @@ export default function ParkingAreaDetails() {
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--text-secondary)]">Duration</span>
-              <span className="text-[var(--text-primary)] font-medium">{duration} hour{duration > 1 ? 's' : ''}</span>
+              <span className="text-[var(--text-primary)] font-medium">{duration < 60 ? `${duration} min` : `${duration / 60} hour${duration / 60 > 1 ? 's' : ''}`}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--text-secondary)]">Time</span>
@@ -300,36 +300,27 @@ export default function ParkingAreaDetails() {
             </div>
           </div>
 
-          <div className="card-dark p-5">
-            <label className="text-sm font-medium text-[var(--text-primary)] mb-3 block">Start Time</label>
-            <input
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => { setStartTime(e.target.value); setTimeError(''); }}
-              className="w-full px-4 py-2.5 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm [color-scheme:dark]"
-            />
-            {timeError && <p className="text-[var(--status-cancelled)] text-xs mt-2">{timeError}</p>}
-          </div>
-
-          <div className="card-dark p-5">
-            <label className="text-sm font-medium text-[var(--text-primary)] mb-4 block">Duration</label>
-            <div className="flex items-center justify-center space-x-3 mb-4">
-              {[1, 2, 3, 4, 5, 6].map((h) => (
+            <div className="card-dark p-5">
+            <label className="text-sm font-medium text-[var(--text-primary)] mb-4 block">Duration (minutes)</label>
+            <div className="flex items-center justify-center flex-wrap gap-2 mb-4">
+              {[1, 5, 15, 30, 60, 120, 180, 240].map((m) => (
                 <button
-                  key={h}
-                  onClick={() => setDuration(h)}
-                  className={`w-11 h-11 rounded-full text-sm font-bold transition border ${
-                    duration === h
+                  key={m}
+                  onClick={() => setDuration(m)}
+                  className={`w-14 h-11 rounded-full text-sm font-bold transition border ${
+                    duration === m
                       ? 'bg-[var(--accent-purple)] text-white border-[var(--accent-purple)]'
                       : 'bg-transparent text-[var(--text-secondary)] border-slate-700/30 hover:border-slate-600'
                   }`}
                 >
-                  {h}h
+                  {m < 60 ? `${m}m` : `${m / 60}h`}
                 </button>
               ))}
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-[var(--text-primary)]">{duration} Hours</p>
+              <p className="text-3xl font-bold text-[var(--text-primary)]">
+                {duration < 60 ? `${duration} Minutes` : `${duration / 60} Hour${duration / 60 > 1 ? 's' : ''}`}
+              </p>
               <p className="text-xs text-[var(--text-secondary)] mt-1">
                 {formatTime(startTime)} to {formatTime(endTime.toISOString())}
               </p>
@@ -338,7 +329,7 @@ export default function ParkingAreaDetails() {
 
           <div className="card-dark p-5">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-secondary)]">${pricePerHour.toFixed(2)}/hour × {duration} hour{duration > 1 ? 's' : ''}</span>
+              <span className="text-sm text-[var(--text-secondary)]">${pricePerHour.toFixed(2)}/hour × {duration < 60 ? `${duration} min` : `${duration / 60}h`}</span>
               <span className="text-xl font-bold text-[var(--accent-yellow)]">${total.toFixed(2)}</span>
             </div>
           </div>
@@ -356,7 +347,7 @@ export default function ParkingAreaDetails() {
         <div className="space-y-6">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Select Your Slot</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">{area.name} · {formatDate(startTime)} · {duration} hour{duration > 1 ? 's' : ''}</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">{area.name} · {formatDate(startTime)} · {duration < 60 ? `${duration} min` : `${duration / 60}h`}</p>
           </div>
 
           {floors.length > 0 && (
@@ -492,7 +483,7 @@ export default function ParkingAreaDetails() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-[var(--text-secondary)]">${pricePerHour.toFixed(2)}/hour</span>
-                <span className="text-[var(--text-primary)]">{duration} hour{duration > 1 ? 's' : ''}</span>
+                <span className="text-[var(--text-primary)]">{duration < 60 ? `${duration} min` : `${duration / 60}h`}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[var(--text-secondary)]">Place Booked</span>

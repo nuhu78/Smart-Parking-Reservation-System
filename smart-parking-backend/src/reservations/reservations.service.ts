@@ -37,13 +37,6 @@ export class ReservationsService {
       throw new BadRequestException('Start time cannot be in the past');
     }
 
-    const maxDuration = 4 * 60 * 60 * 1000;
-    if (endTime.getTime() - startTime.getTime() > maxDuration) {
-      throw new BadRequestException(
-        'Reservation duration cannot exceed 4 hours',
-      );
-    }
-
     const activeCount = await this.reservationsRepository.count({
       where: { user: { id: user.id }, status: ReservationStatus.ACTIVE },
     });
