@@ -35,8 +35,8 @@ export class Reservation {
   })
   status!: ReservationStatus;
 
-  @Column({ type: 'varchar', length: 20 })
-  vehicleNumber!: string;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  vehicleNumber?: string;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   phoneNumber?: string;
