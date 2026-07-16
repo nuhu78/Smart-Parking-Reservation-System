@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
-import { ArrowLeft, CheckCircle, Clock } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { ArrowLeft, Car, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 
-// Helper: format a Date to the `datetime-local` input value (YYYY-MM-DDTHH:mm)
 function toLocalDateTimeString(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -15,278 +15,510 @@ function toLocalDateTimeString(date) {
   return `${y}-${m}-${d}T${h}:${min}`;
 }
 
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const sections = ['A', 'B', 'C', 'D'];
+const gradients = [
+  'from-violet-600 to-indigo-700',
+  'from-blue-600 to-cyan-600',
+  'from-emerald-600 to-teal-600',
+  'from-amber-500 to-orange-600',
+];
+
 export default function ParkingAreaDetails() {
   const { id } = useParams();
   const router = useRouter();
-  const [slots, setSlots] = useState([]);
+  const { user } = useAuthStore();
+
+  const [area, setArea] = useState(null);
+  const [allSlots, setAllSlots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [areaName, setAreaName] = useState('');
+  const [booking, setBooking] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [createdReservation, setCreatedReservation] = useState(null);
 
-  // Time selection state
   const now = new Date();
-  const defaultStart = new Date(now.getTime() + 10 * 60 * 1000); // 10 min from now
-  const defaultEnd = new Date(now.getTime() + 70 * 60 * 1000);   // 1 hour after start
-
+  const defaultStart = new Date(now.getTime() + 10 * 60 * 1000);
   const [startTime, setStartTime] = useState(toLocalDateTimeString(defaultStart));
-  const [endTime, setEndTime] = useState(toLocalDateTimeString(defaultEnd));
+  const [duration, setDuration] = useState(2);
+  const [vehicleType, setVehicleType] = useState('four_wheeler');
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [activeFloor, setActiveFloor] = useState('G');
+  const [activeSection, setActiveSection] = useState('A');
   const [timeError, setTimeError] = useState('');
 
-  // Modal State
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [isBooking, setIsBooking] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [step, setStep] = useState(1);
 
-  // Validate times and return true if valid
-  const validateTimes = (start, end) => {
-    const s = new Date(start);
-    const e = new Date(end);
-    const currentTime = new Date();
+  const endTime = useMemo(() => {
+    const s = new Date(startTime);
+    return new Date(s.getTime() + duration * 60 * 60 * 1000);
+  }, [startTime, duration]);
 
-    if (s <= currentTime) {
+  const pricePerHour = area?.pricePerHour ? parseFloat(area.pricePerHour) : 5;
+  const total = pricePerHour * duration;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [areaRes, slotsRes] = await Promise.all([
+          api.get(`/parking`),
+          api.get(`/slots?parkingAreaId=${id}`),
+        ]);
+        const found = areaRes.data.data.find((a) => String(a.id) === String(id));
+        setArea(found || null);
+        const sorted = slotsRes.data.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber));
+        setAllSlots(sorted);
+      } catch (error) {
+        console.error('Failed to fetch data', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
+
+  const floorMap = useMemo(() => {
+    const map = {};
+    for (const slot of allSlots) {
+      const f = slot.floor !== undefined && slot.floor !== null ? String(slot.floor) : 'G';
+      if (!map[f]) map[f] = [];
+      map[f].push(slot);
+    }
+    return map;
+  }, [allSlots]);
+
+  const floors = useMemo(() => Object.keys(floorMap).sort(), [floorMap]);
+
+  const safeFloor = floors.includes(activeFloor) ? activeFloor : (floors[0] || 'G');
+  const currentFloorSlots = floorMap[safeFloor] || [];
+
+  const sectionMap = useMemo(() => {
+    const map = {};
+    const floorSlots = floorMap[safeFloor] || [];
+    for (const slot of floorSlots) {
+      const prefix = slot.slotNumber.charAt(0).toUpperCase();
+      const sec = sections.includes(prefix) ? prefix : 'A';
+      if (!map[sec]) map[sec] = [];
+      map[sec].push(slot);
+    }
+    return map;
+  }, [floorMap, safeFloor]);
+
+  const sectionsAvail = useMemo(() => Object.keys(sectionMap).sort(), [sectionMap]);
+
+  const safeSection = sectionsAvail.includes(activeSection) ? activeSection : (sectionsAvail[0] || 'A');
+  const currentSectionSlots = sectionMap[safeSection] || [];
+
+  const sectionIndex = sectionsAvail.indexOf(safeSection);
+
+  const validateTimes = () => {
+    const s = new Date(startTime);
+    const now2 = new Date();
+    if (s <= now2) {
       setTimeError('Start time must be in the future');
-      return false;
-    }
-    if (s >= e) {
-      setTimeError('Start time must be before end time');
-      return false;
-    }
-    const maxDuration = 4 * 60 * 60 * 1000; // 4 hours
-    if (e.getTime() - s.getTime() > maxDuration) {
-      setTimeError('Reservation duration cannot exceed 4 hours');
       return false;
     }
     setTimeError('');
     return true;
   };
 
-  // Fetch available slots for the selected time range
-  const fetchAvailableSlots = async () => {
-    if (!validateTimes(startTime, endTime)) return;
-
+  const handleCheckAvailability = async () => {
+    if (!validateTimes()) return;
+    setLoading(true);
     try {
-      setLoading(true);
       const s = new Date(startTime).toISOString();
-      const e = new Date(endTime).toISOString();
-      const response = await api.get(`/slots/available/${id}?startTime=${s}&endTime=${e}`);
-      const sortedSlots = response.data.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber));
-      setSlots(sortedSlots);
-
-      // Get area name from first slot if available
-      if (sortedSlots.length > 0 && sortedSlots[0].parkingArea) {
-        setAreaName(sortedSlots[0].parkingArea.name);
-      }
+      const e = endTime.toISOString();
+      const res = await api.get(`/slots/available/${id}?startTime=${s}&endTime=${e}`);
+      const availIds = new Set(res.data.map((sl) => sl.id));
+      setAllSlots((prev) =>
+        prev.map((sl) => ({ ...sl, status: availIds.has(sl.id) ? 'available' : 'occupied' }))
+      );
     } catch (error) {
-      console.error('Failed to fetch available slots', error);
+      console.error('Failed to check availability', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Initial load: fetch all slots for this area
-  useEffect(() => {
-    const fetchInitialSlots = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(`/slots?parkingAreaId=${id}`);
-        const sortedSlots = response.data.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber));
-        setSlots(sortedSlots);
-
-        if (sortedSlots.length > 0 && sortedSlots[0].parkingArea) {
-          setAreaName(sortedSlots[0].parkingArea.name);
-        }
-      } catch (error) {
-        console.error('Failed to fetch slots', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitialSlots();
-  }, [id]);
-
-  // Book the selected slot with the chosen time range
-  const handleBookSlot = async () => {
+  const handleCheckout = async () => {
+    if (!vehicleNumber.trim()) return;
     try {
-      setIsBooking(true);
+      setBooking(true);
       const s = new Date(startTime).toISOString();
-      const e = new Date(endTime).toISOString();
-      await api.post('/reservations', { slotId: selectedSlot.id, startTime: s, endTime: e });
-      setBookingSuccess(true);
-
-      // Remove the booked slot from the available list
-      setSlots(slots.filter(slot => slot.id !== selectedSlot.id));
+      const e = endTime.toISOString();
+      const payload = {
+        slotId: selectedSlot.id,
+        startTime: s,
+        endTime: e,
+        vehicleNumber: vehicleNumber.trim(),
+        phoneNumber: phoneNumber.trim(),
+        vehicleType,
+      };
+      const res = await api.post('/reservations', payload);
+      setCreatedReservation(res.data);
+      setShowConfirmation(true);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to book slot.');
+      alert(error.response?.data?.message || 'Failed to create reservation.');
     } finally {
-      setIsBooking(false);
+      setBooking(false);
     }
   };
 
-  // Format time for display in the modal
-  const formatDateTime = (isoString) => {
-    return new Date(isoString).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-  };
+  if (loading && !area) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <div className="animate-pulse space-y-6">
+          <div className="h-6 bg-slate-700/30 rounded w-24" />
+          <div className="h-8 bg-slate-700/30 rounded w-64" />
+          <div className="h-40 bg-slate-700/30 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!area) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <button onClick={() => router.back()} className="flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition mb-6">
+          <ArrowLeft size={18} className="mr-2" /> Back
+        </button>
+        <div className="card-dark p-10 text-center text-[var(--text-secondary)]">
+          <Car size={40} className="mx-auto mb-3 opacity-40" />
+          Parking area not found.
+        </div>
+      </div>
+    );
+  }
+
+  if (showConfirmation && createdReservation) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <div className="card-dark p-6 sm:p-8 max-w-md mx-auto text-center">
+          <div className="w-16 h-16 rounded-full bg-[var(--status-active)]/15 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle size={36} className="text-[var(--status-active)]" />
+          </div>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Booking Confirmed!</h2>
+          <p className="text-sm text-[var(--text-secondary)] mb-6">Your parking slot has been reserved.</p>
+
+          <div className="bg-[var(--bg-primary)] rounded-xl p-4 mb-6 text-left space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Name</span>
+              <span className="text-[var(--text-primary)] font-medium">{fullName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Vehicle</span>
+              <span className="text-[var(--text-primary)] font-medium">{vehicleNumber}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Area</span>
+              <span className="text-[var(--text-primary)] font-medium">{area.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Slot</span>
+              <span className="text-[var(--text-primary)] font-medium">{selectedSlot?.slotNumber}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Duration</span>
+              <span className="text-[var(--text-primary)] font-medium">{duration} hour{duration > 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Time</span>
+              <span className="text-[var(--text-primary)] font-medium">{formatTime(startTime)} — {formatTime(endTime.toISOString())}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Date</span>
+              <span className="text-[var(--text-primary)] font-medium">{formatDate(startTime)}</span>
+            </div>
+            <div className="flex justify-between pt-2 border-t border-slate-700/30">
+              <span className="text-[var(--text-secondary)]">Total</span>
+              <span className="text-[var(--accent-yellow)] font-bold">${total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <button onClick={() => router.push('/reservations')} className="btn-primary w-full text-sm">
+            View My Reservations
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-      <button
-        onClick={() => router.back()}
-        className="flex items-center text-slate-500 hover:text-slate-800 transition mb-6"
-      >
-        <ArrowLeft size={20} className="mr-2" /> Back to Locations
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      <button onClick={() => step === 1 ? router.back() : setStep(step - 1)} className="flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition mb-4">
+        <ArrowLeft size={18} className="mr-2" /> {step === 1 ? 'Back to Locations' : 'Back'}
       </button>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">
-          {areaName ? `${areaName} — Select a Slot` : 'Select a Parking Slot'}
-        </h1>
-        <p className="text-slate-600 mt-2">Choose your time range, then pick an available slot.</p>
+      <div className="flex items-center space-x-2 mb-6">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className="flex items-center">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${
+              s === step ? 'bg-[var(--accent-purple)] text-white' :
+              s < step ? 'bg-[var(--status-active)] text-white' :
+              'bg-slate-700/30 text-[var(--text-secondary)]'
+            }`}>
+              {s < step ? <CheckCircle size={14} /> : s}
+            </div>
+            {s < 3 && <div className={`w-8 sm:w-12 h-0.5 mx-1 transition ${s < step ? 'bg-[var(--status-active)]' : 'bg-slate-700/30'}`} />}
+          </div>
+        ))}
       </div>
 
-      {/* Time Selection Panel */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-8">
-        <div className="flex items-center mb-4">
-          <Clock size={20} className="text-slate-600 mr-2" />
-          <h2 className="text-lg font-semibold text-slate-800">Select Reservation Time</h2>
-        </div>
+      {step === 1 && (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">{area.name}</h1>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">{area.location}</p>
+          </div>
 
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-grow min-w-[200px]">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Start Time</label>
+          <div className="card-dark p-5">
+            <label className="text-sm font-medium text-[var(--text-primary)] mb-3 block">Vehicle Type</label>
+            <div className="flex space-x-3">
+              {['two_wheeler', 'four_wheeler'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setVehicleType(type)}
+                  className={`flex-1 py-2.5 rounded-full text-sm font-medium transition border ${
+                    vehicleType === type
+                      ? 'bg-[var(--accent-yellow)] text-[#0D0D0D] border-[var(--accent-yellow)]'
+                      : 'bg-transparent text-[var(--text-secondary)] border-slate-700/30 hover:border-slate-600'
+                  }`}
+                >
+                  {type === 'two_wheeler' ? 'Two Wheeler' : 'Four Wheeler'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="card-dark p-5">
+            <label className="text-sm font-medium text-[var(--text-primary)] mb-3 block">Start Time</label>
             <input
               type="datetime-local"
               value={startTime}
-              onChange={(e) => {
-                setStartTime(e.target.value);
-                validateTimes(e.target.value, endTime);
-              }}
-              className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-green-500 focus:outline-none"
+              onChange={(e) => { setStartTime(e.target.value); setTimeError(''); }}
+              className="w-full px-4 py-2.5 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm [color-scheme:dark]"
             />
+            {timeError && <p className="text-[var(--status-cancelled)] text-xs mt-2">{timeError}</p>}
           </div>
 
-          <div className="flex-grow min-w-[200px]">
-            <label className="block text-sm font-medium text-slate-700 mb-1">End Time</label>
-            <input
-              type="datetime-local"
-              value={endTime}
-              onChange={(e) => {
-                setEndTime(e.target.value);
-                validateTimes(startTime, e.target.value);
-              }}
-              className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-green-500 focus:outline-none"
-            />
+          <div className="card-dark p-5">
+            <label className="text-sm font-medium text-[var(--text-primary)] mb-4 block">Duration</label>
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              {[1, 2, 3, 4, 5, 6].map((h) => (
+                <button
+                  key={h}
+                  onClick={() => setDuration(h)}
+                  className={`w-11 h-11 rounded-full text-sm font-bold transition border ${
+                    duration === h
+                      ? 'bg-[var(--accent-purple)] text-white border-[var(--accent-purple)]'
+                      : 'bg-transparent text-[var(--text-secondary)] border-slate-700/30 hover:border-slate-600'
+                  }`}
+                >
+                  {h}h
+                </button>
+              ))}
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-[var(--text-primary)]">{duration} Hours</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                {formatTime(startTime)} to {formatTime(endTime.toISOString())}
+              </p>
+            </div>
+          </div>
+
+          <div className="card-dark p-5">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-[var(--text-secondary)]">${pricePerHour.toFixed(2)}/hour × {duration} hour{duration > 1 ? 's' : ''}</span>
+              <span className="text-xl font-bold text-[var(--accent-yellow)]">${total.toFixed(2)}</span>
+            </div>
           </div>
 
           <button
-            onClick={fetchAvailableSlots}
-            disabled={!!timeError}
-            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition font-medium h-[42px] disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => { if (validateTimes()) { handleCheckAvailability(); setStep(2); } }}
+            className="btn-primary w-full"
           >
-            Check Availability
+            Next
           </button>
-        </div>
-
-        {timeError && (
-          <p className="text-red-500 text-sm mt-2">{timeError}</p>
-        )}
-        <p className="text-xs text-slate-500 mt-2">Maximum reservation duration: 4 hours</p>
-      </div>
-
-      {/* Slot Grid */}
-      {loading ? (
-        <div className="text-center text-slate-500 py-10">Loading slots...</div>
-      ) : slots.length === 0 ? (
-        <div className="text-center bg-white p-10 rounded shadow-sm text-slate-500 border">
-          No available slots found for this time range. Try a different time.
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {slots.map((slot) => {
-            const isAvailable = slot.status === 'available';
-
-            return (
-              <div
-                key={slot.id}
-                className={`
-                  relative flex flex-col items-center justify-center p-6 rounded-lg border-2 transition text-center
-                  ${isAvailable
-                    ? 'border-green-500 bg-green-50 hover:bg-green-100 cursor-pointer'
-                    : 'border-red-500 bg-red-50 cursor-not-allowed'}
-                `}
-                onClick={() => {
-                  if (isAvailable) {
-                    setSelectedSlot(slot);
-                    setBookingSuccess(false);
-                  }
-                }}
-              >
-                <span className={`text-2xl font-bold ${!isAvailable ? 'text-red-700' : 'text-slate-800'}`}>
-                  {slot.slotNumber}
-                </span>
-                <span className={`text-xs font-bold mt-2 px-2 py-1 rounded uppercase tracking-wide
-                  ${isAvailable ? 'text-green-700 bg-green-200' : 'text-red-700 bg-red-200'}
-                `}>
-                  {isAvailable ? 'available' : slot.status}
-                </span>
-              </div>
-            );
-          })}
         </div>
       )}
 
-      {/* THE BOOKING MODAL */}
-      {selectedSlot && (
-        <div className="fixed inset-0 bg-slate-900/25 backdrop-blur-md flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full">
-            {!bookingSuccess ? (
-              <>
-                <h2 className="text-2xl font-bold text-slate-800 mb-4">Confirm Booking</h2>
-                <div className="space-y-3 mb-6">
-                  <p className="text-slate-600">
-                    Reserve slot <strong>{selectedSlot.slotNumber}</strong>?
-                  </p>
-                  <div className="bg-slate-50 p-3 rounded text-sm space-y-1">
-                    <p className="text-slate-700"><strong>From:</strong> {formatDateTime(startTime)}</p>
-                    <p className="text-slate-700"><strong>To:</strong> {formatDateTime(endTime)}</p>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    An email confirmation will be sent to you.
-                  </p>
-                </div>
-                <div className="flex space-x-4">
-                  <button
-                    onClick={() => setSelectedSlot(null)}
-                    className="flex-1 bg-slate-200 text-slate-800 py-2 rounded hover:bg-slate-300 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleBookSlot}
-                    disabled={isBooking}
-                    className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition disabled:opacity-50"
-                  >
-                    {isBooking ? 'Booking...' : 'Confirm'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="text-center">
-                <CheckCircle className="text-green-500 mx-auto mb-4" size={48} />
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">Success!</h2>
-                <p className="text-slate-600 mb-6">Your slot is booked. Check your email!</p>
-                <button
-                  onClick={() => router.push('/reservations')}
-                  className="w-full bg-slate-800 text-white py-2 rounded hover:bg-slate-700 transition"
-                >
-                  View My Reservations
-                </button>
-              </div>
-            )}
+      {step === 2 && (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Select Your Slot</h1>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">{area.name} · {formatDate(startTime)} · {duration} hour{duration > 1 ? 's' : ''}</p>
           </div>
+
+          {floors.length > 0 && (
+            <div className="flex space-x-2 overflow-x-auto pb-1">
+              {floors.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setActiveFloor(f)}
+                  className={`pill-tab whitespace-nowrap ${safeFloor === f ? 'pill-tab-active' : 'pill-tab-inactive'}`}
+                >
+                  {f === 'G' ? 'G Floor' : `${f}${f === '1' ? 'st' : f === '2' ? 'nd' : f === '3' ? 'rd' : 'th'} Floor`}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {sectionsAvail.length > 0 && (
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  const idx = sectionsAvail.indexOf(activeSection);
+                  if (idx > 0) setActiveSection(sectionsAvail[idx - 1]);
+                }}
+                disabled={sectionIndex <= 0}
+                className="p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="text-sm font-medium text-[var(--text-primary)]">{activeSection} & B Slots</span>
+              <button
+                onClick={() => {
+                  const idx = sectionsAvail.indexOf(activeSection);
+                  if (idx < sectionsAvail.length - 1) setActiveSection(sectionsAvail[idx + 1]);
+                }}
+                disabled={sectionIndex >= sectionsAvail.length - 1}
+                className="p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+
+          <div className="card-dark p-3">
+            <div className="flex items-center space-x-2 mb-3 px-1">
+              <div className="w-2 h-2 rounded-full bg-[var(--status-active)]" />
+              <span className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Entry</span>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+              {currentSectionSlots.map((slot) => {
+                const isAvail = slot.status === 'available';
+                const isSelected = selectedSlot?.id === slot.id;
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => { if (isAvail) setSelectedSlot(slot); }}
+                    disabled={!isAvail}
+                    className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition ${
+                      isSelected
+                        ? 'border-[var(--accent-yellow)] bg-[var(--accent-yellow)]/10 ring-1 ring-[var(--accent-yellow)]'
+                        : isAvail
+                          ? 'border-slate-700/30 bg-[var(--bg-primary)] hover:border-[var(--accent-purple)]/50 cursor-pointer'
+                          : 'border-slate-700/20 bg-slate-800/30 opacity-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <Car size={22} className={`${isAvail ? 'text-[var(--text-secondary)]' : 'text-slate-600'}`} />
+                    <span className={`text-[10px] font-bold mt-1 ${isAvail ? 'text-[var(--text-primary)]' : 'text-slate-500'}`}>
+                      {slot.slotNumber}
+                    </span>
+                    {isSelected && (
+                      <span className="text-[9px] font-semibold text-[var(--accent-yellow)] mt-0.5">Selected</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setStep(3)}
+            disabled={!selectedSlot}
+            className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {selectedSlot ? `Next — ${selectedSlot.slotNumber}` : 'Select a Slot'}
+          </button>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Additional Details</h1>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">Confirm your information to complete booking.</p>
+          </div>
+
+          <div className="card-dark p-5 space-y-4">
+            <div>
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Full Name</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm placeholder-[var(--text-secondary)]"
+                placeholder="Your full name"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Vehicle Number</label>
+              <input
+                type="text"
+                value={vehicleNumber}
+                onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                className="w-full px-4 py-2.5 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm placeholder-[var(--text-secondary)]"
+                placeholder="e.g. ABC-1234"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Mobile Number</label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 rounded-l-full bg-[var(--bg-primary)] border border-r-0 border-slate-700/30 text-sm text-[var(--text-secondary)]">🇺🇸 +1</span>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="flex-1 px-4 py-2.5 rounded-r-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm placeholder-[var(--text-secondary)]"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="card-dark p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Booking Summary</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[var(--text-secondary)]">${pricePerHour.toFixed(2)}/hour</span>
+                <span className="text-[var(--text-primary)]">{duration} hour{duration > 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-secondary)]">Place Booked</span>
+                <span className="text-[var(--text-primary)]">{area.name}</span>
+              </div>
+              {selectedSlot && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-secondary)]">Slot</span>
+                  <span className="text-[var(--text-primary)]">{selectedSlot.slotNumber}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-2 border-t border-slate-700/30">
+                <span className="text-[var(--text-secondary)] font-medium">Total Amount</span>
+                <span className="text-lg font-bold text-[var(--accent-yellow)]">${total.toFixed(2)}</span>
+              </div>
+            </div>
+            <button className="text-xs text-[var(--accent-purple)] hover:underline mt-1">+ Add EV Charging</button>
+          </div>
+
+          <button
+            onClick={handleCheckout}
+            disabled={!vehicleNumber.trim() || booking}
+            className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {booking ? 'Booking...' : 'Checkout'}
+          </button>
         </div>
       )}
     </div>
