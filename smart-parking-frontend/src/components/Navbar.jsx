@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Car, MapPin, Bell } from 'lucide-react';
+import { Car, MapPin, Bell, ClipboardList, User } from 'lucide-react';
 
 export default function Navbar() {
   const router = useRouter();
@@ -83,9 +83,17 @@ export default function Navbar() {
             <span className="font-bold text-base tracking-wide">SmartPark</span>
           </Link>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
+            <Link href="/reservations" className="flex items-center space-x-1 text-[var(--text-secondary)] hover:text-[var(--accent-purple)] transition text-xs font-medium">
+              <ClipboardList size={14} />
+              <span className="hidden sm:inline">My Bookings</span>
+            </Link>
+            <Link href="/profile" className="flex items-center space-x-1 text-[var(--text-secondary)] hover:text-[var(--accent-purple)] transition text-xs font-medium">
+              <User size={14} />
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
             <button className="relative text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition" title="Notifications">
-              <Bell size={18} />
+              <Bell size={16} />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--status-active)] rounded-full" />
             </button>
             <button
