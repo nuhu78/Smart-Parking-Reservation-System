@@ -4,16 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
-import { ArrowLeft, Car, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
-
-function toLocalDateTimeString(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const h = String(date.getHours()).padStart(2, '0');
-  const min = String(date.getMinutes()).padStart(2, '0');
-  return `${y}-${m}-${d}T${h}:${min}`;
-}
+import { ArrowLeft, Car, ChevronLeft, ChevronRight, CheckCircle, DollarSign } from 'lucide-react';
 
 function formatTime(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -24,12 +15,8 @@ function formatDate(iso) {
 }
 
 const sections = ['A', 'B', 'C', 'D'];
-const gradients = [
-  'from-violet-600 to-indigo-700',
-  'from-blue-600 to-cyan-600',
-  'from-emerald-600 to-teal-600',
-  'from-amber-500 to-orange-600',
-];
+
+const stepLabels = ['Select Slot', 'Duration & Type', 'Confirm'];
 
 export default function ParkingAreaDetails() {
   const { id } = useParams();
@@ -45,7 +32,7 @@ export default function ParkingAreaDetails() {
 
   const now = new Date();
   const defaultStart = new Date(now.getTime() + 10 * 60 * 1000);
-  const [startTime, setStartTime] = useState(toLocalDateTimeString(defaultStart));
+  const [startTime] = useState(defaultStart.toISOString());
   const [duration, setDuration] = useState(60);
   const [vehicleType, setVehicleType] = useState('four_wheeler');
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -54,7 +41,6 @@ export default function ParkingAreaDetails() {
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [activeFloor, setActiveFloor] = useState('G');
   const [activeSection, setActiveSection] = useState('A');
-  const [timeError, setTimeError] = useState('');
 
   const [step, setStep] = useState(1);
 
@@ -63,8 +49,10 @@ export default function ParkingAreaDetails() {
     return new Date(s.getTime() + duration * 60 * 1000);
   }, [startTime, duration]);
 
-  const pricePerHour = area?.pricePerHour ? parseFloat(area.pricePerHour) : 5;
-  const total = pricePerHour * (duration / 60);
+  const slotPrice = selectedSlot
+    ? parseFloat(selectedSlot.pricePerHour || area?.pricePerHour || 5)
+    : 0;
+  const total = slotPrice * (duration / 60);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,6 +74,24 @@ export default function ParkingAreaDetails() {
     };
     fetchData();
   }, [id]);
+
+  useEffect(() => {
+    if (!selectedSlot || step !== 1) return;
+    const checkAvail = async () => {
+      try {
+        const s = new Date(startTime).toISOString();
+        const e = endTime.toISOString();
+        const res = await api.get(`/slots/available/${id}?startTime=${s}&endTime=${e}`);
+        const availIds = new Set(res.data.map((sl) => sl.id));
+        setAllSlots((prev) =>
+          prev.map((sl) => ({ ...sl, status: availIds.has(sl.id) ? 'available' : 'occupied' }))
+        );
+      } catch (error) {
+        console.error('Failed to check availability', error);
+      }
+    };
+    checkAvail();
+  }, [startTime, endTime, id, selectedSlot, step]);
 
   const floorMap = useMemo(() => {
     const map = {};
@@ -120,35 +126,6 @@ export default function ParkingAreaDetails() {
   const currentSectionSlots = sectionMap[safeSection] || [];
 
   const sectionIndex = sectionsAvail.indexOf(safeSection);
-
-  const validateTimes = () => {
-    const s = new Date(startTime);
-    const now2 = new Date();
-    if (s <= now2) {
-      setTimeError('Start time must be in the future');
-      return false;
-    }
-    setTimeError('');
-    return true;
-  };
-
-  const handleCheckAvailability = async () => {
-    if (!validateTimes()) return;
-    setLoading(true);
-    try {
-      const s = new Date(startTime).toISOString();
-      const e = endTime.toISOString();
-      const res = await api.get(`/slots/available/${id}?startTime=${s}&endTime=${e}`);
-      const availIds = new Set(res.data.map((sl) => sl.id));
-      setAllSlots((prev) =>
-        prev.map((sl) => ({ ...sl, status: availIds.has(sl.id) ? 'available' : 'occupied' }))
-      );
-    } catch (error) {
-      console.error('Failed to check availability', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCheckout = async () => {
     if (!vehicleNumber.trim()) return;
@@ -281,6 +258,100 @@ export default function ParkingAreaDetails() {
             <p className="text-sm text-[var(--text-secondary)] mt-1">{area.location}</p>
           </div>
 
+          {floors.length > 0 && (
+            <div className="flex space-x-2 overflow-x-auto pb-1">
+              {floors.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setActiveFloor(f)}
+                  className={`pill-tab whitespace-nowrap ${safeFloor === f ? 'pill-tab-active' : 'pill-tab-inactive'}`}
+                >
+                  {f === 'G' ? 'G Floor' : `${f}${f === '1' ? 'st' : f === '2' ? 'nd' : f === '3' ? 'rd' : 'th'} Floor`}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {sectionsAvail.length > 0 && (
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  const idx = sectionsAvail.indexOf(activeSection);
+                  if (idx > 0) setActiveSection(sectionsAvail[idx - 1]);
+                }}
+                disabled={sectionIndex <= 0}
+                className="p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="text-sm font-medium text-[var(--text-primary)]">Section {activeSection}</span>
+              <button
+                onClick={() => {
+                  const idx = sectionsAvail.indexOf(activeSection);
+                  if (idx < sectionsAvail.length - 1) setActiveSection(sectionsAvail[idx + 1]);
+                }}
+                disabled={sectionIndex >= sectionsAvail.length - 1}
+                className="p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+
+          <div className="card-dark p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {currentSectionSlots.map((slot) => {
+                const isAvail = slot.status === 'available' || slot.status === 'AVAILABLE';
+                const isSelected = selectedSlot?.id === slot.id;
+                const sp = parseFloat(slot.pricePerHour || area.pricePerHour || 0);
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => { if (isAvail) setSelectedSlot(slot); }}
+                    disabled={!isAvail}
+                    className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition ${
+                      isSelected
+                        ? 'border-[var(--accent-yellow)] bg-[var(--accent-yellow)]/10 ring-1 ring-[var(--accent-yellow)]'
+                        : isAvail
+                          ? 'border-slate-700/30 bg-[var(--bg-primary)] hover:border-[var(--accent-purple)]/50 cursor-pointer'
+                          : 'border-slate-700/20 bg-slate-800/30 opacity-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <Car size={22} className={`${isAvail ? 'text-[var(--text-secondary)]' : 'text-slate-600'}`} />
+                    <span className={`text-[10px] font-bold mt-1 ${isAvail ? 'text-[var(--text-primary)]' : 'text-slate-500'}`}>
+                      {slot.slotNumber}
+                    </span>
+                    {sp > 0 && (
+                      <span className="text-[9px] text-[var(--accent-yellow)] font-semibold mt-0.5">${sp.toFixed(2)}/h</span>
+                    )}
+                    {isSelected && (
+                      <span className="text-[9px] font-semibold text-[var(--accent-yellow)] mt-0.5">Selected</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setStep(2)}
+            disabled={!selectedSlot}
+            className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {selectedSlot ? `Next — ${selectedSlot.slotNumber}` : 'Select a Slot'}
+          </button>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-6 max-w-lg mx-auto">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Duration & Vehicle</h1>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              {area.name} · Slot {selectedSlot?.slotNumber} · ${slotPrice.toFixed(2)}/hour
+            </p>
+          </div>
+
           <div className="card-dark p-5">
             <label className="text-sm font-medium text-[var(--text-primary)] mb-3 block">Vehicle Type</label>
             <div className="flex space-x-3">
@@ -300,7 +371,7 @@ export default function ParkingAreaDetails() {
             </div>
           </div>
 
-            <div className="card-dark p-5">
+          <div className="card-dark p-5">
             <label className="text-sm font-medium text-[var(--text-primary)] mb-4 block">Duration (minutes)</label>
             <div className="flex items-center justify-center flex-wrap gap-2 mb-4">
               {[1, 5, 15, 30, 60, 120, 180, 240].map((m) => (
@@ -329,117 +400,22 @@ export default function ParkingAreaDetails() {
 
           <div className="card-dark p-5">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-secondary)]">${pricePerHour.toFixed(2)}/hour × {duration < 60 ? `${duration} min` : `${duration / 60}h`}</span>
+              <span className="text-sm text-[var(--text-secondary)]">${slotPrice.toFixed(2)}/hour × {duration < 60 ? `${duration} min` : `${duration / 60}h`}</span>
               <span className="text-xl font-bold text-[var(--accent-yellow)]">${total.toFixed(2)}</span>
             </div>
           </div>
 
-          <button
-            onClick={() => { if (validateTimes()) { handleCheckAvailability(); setStep(2); } }}
-            className="btn-primary w-full"
-          >
+          <button onClick={() => setStep(3)} className="btn-primary w-full">
             Next
           </button>
         </div>
       )}
 
-      {step === 2 && (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Select Your Slot</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">{area.name} · {formatDate(startTime)} · {duration < 60 ? `${duration} min` : `${duration / 60}h`}</p>
-          </div>
-
-          {floors.length > 0 && (
-            <div className="flex space-x-2 overflow-x-auto pb-1">
-              {floors.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setActiveFloor(f)}
-                  className={`pill-tab whitespace-nowrap ${safeFloor === f ? 'pill-tab-active' : 'pill-tab-inactive'}`}
-                >
-                  {f === 'G' ? 'G Floor' : `${f}${f === '1' ? 'st' : f === '2' ? 'nd' : f === '3' ? 'rd' : 'th'} Floor`}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {sectionsAvail.length > 0 && (
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => {
-                  const idx = sectionsAvail.indexOf(activeSection);
-                  if (idx > 0) setActiveSection(sectionsAvail[idx - 1]);
-                }}
-                disabled={sectionIndex <= 0}
-                className="p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <span className="text-sm font-medium text-[var(--text-primary)]">{activeSection} & B Slots</span>
-              <button
-                onClick={() => {
-                  const idx = sectionsAvail.indexOf(activeSection);
-                  if (idx < sectionsAvail.length - 1) setActiveSection(sectionsAvail[idx + 1]);
-                }}
-                disabled={sectionIndex >= sectionsAvail.length - 1}
-                className="p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
-
-          <div className="card-dark p-3">
-            <div className="flex items-center space-x-2 mb-3 px-1">
-              <div className="w-2 h-2 rounded-full bg-[var(--status-active)]" />
-              <span className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Entry</span>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-              {currentSectionSlots.map((slot) => {
-                const isAvail = slot.status === 'available';
-                const isSelected = selectedSlot?.id === slot.id;
-                return (
-                  <button
-                    key={slot.id}
-                    onClick={() => { if (isAvail) setSelectedSlot(slot); }}
-                    disabled={!isAvail}
-                    className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition ${
-                      isSelected
-                        ? 'border-[var(--accent-yellow)] bg-[var(--accent-yellow)]/10 ring-1 ring-[var(--accent-yellow)]'
-                        : isAvail
-                          ? 'border-slate-700/30 bg-[var(--bg-primary)] hover:border-[var(--accent-purple)]/50 cursor-pointer'
-                          : 'border-slate-700/20 bg-slate-800/30 opacity-50 cursor-not-allowed'
-                    }`}
-                  >
-                    <Car size={22} className={`${isAvail ? 'text-[var(--text-secondary)]' : 'text-slate-600'}`} />
-                    <span className={`text-[10px] font-bold mt-1 ${isAvail ? 'text-[var(--text-primary)]' : 'text-slate-500'}`}>
-                      {slot.slotNumber}
-                    </span>
-                    {isSelected && (
-                      <span className="text-[9px] font-semibold text-[var(--accent-yellow)] mt-0.5">Selected</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <button
-            onClick={() => setStep(3)}
-            disabled={!selectedSlot}
-            className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {selectedSlot ? `Next — ${selectedSlot.slotNumber}` : 'Select a Slot'}
-          </button>
-        </div>
-      )}
-
       {step === 3 && (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-lg mx-auto">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Additional Details</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Confirm your information to complete booking.</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Confirm Booking</h1>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">Review your details and checkout.</p>
           </div>
 
           <div className="card-dark p-5 space-y-4">
@@ -482,19 +458,17 @@ export default function ParkingAreaDetails() {
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">Booking Summary</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-[var(--text-secondary)]">${pricePerHour.toFixed(2)}/hour</span>
+                <span className="text-[var(--text-secondary)]">Slot</span>
+                <span className="text-[var(--text-primary)] font-medium">{selectedSlot?.slotNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-secondary)]">${slotPrice.toFixed(2)}/hour</span>
                 <span className="text-[var(--text-primary)]">{duration < 60 ? `${duration} min` : `${duration / 60}h`}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--text-secondary)]">Place Booked</span>
+                <span className="text-[var(--text-secondary)]">Place</span>
                 <span className="text-[var(--text-primary)]">{area.name}</span>
               </div>
-              {selectedSlot && (
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-secondary)]">Slot</span>
-                  <span className="text-[var(--text-primary)]">{selectedSlot.slotNumber}</span>
-                </div>
-              )}
               <div className="flex justify-between pt-2 border-t border-slate-700/30">
                 <span className="text-[var(--text-secondary)] font-medium">Total Amount</span>
                 <span className="text-lg font-bold text-[var(--accent-yellow)]">${total.toFixed(2)}</span>
