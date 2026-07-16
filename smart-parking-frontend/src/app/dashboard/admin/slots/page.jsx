@@ -37,7 +37,7 @@ export default function ManageSlots() {
     e.preventDefault();
     try {
       await api.post('/slots', {
-        areaId: Number(form.areaId),
+        parkingAreaId: Number(form.areaId),
         section: form.section,
         slotNumber: form.slotNumber,
         type: form.type,
@@ -71,7 +71,7 @@ export default function ManageSlots() {
     e.preventDefault();
     try {
       await api.patch(`/slots/${editingSlot.id}`, {
-        areaId: Number(form.areaId),
+        parkingAreaId: Number(form.areaId),
         section: form.section,
         slotNumber: form.slotNumber,
         type: form.type,
