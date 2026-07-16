@@ -135,6 +135,7 @@ export class SlotsService {
     startTime: Date,
     endTime: Date,
   ): Promise<Slot[]> {
+    await this.expireOverdueReservations();
     const allSlots = await this.slotsRepository.find({
       where: { parkingArea: { id: parkingAreaId } },
       relations: ['parkingArea'],
@@ -151,6 +152,8 @@ export class SlotsService {
     });
 
     const busySlotIds = new Set(overlappingSlots.map((r) => r.slot.id));
-    return allSlots.filter((slot) => !busySlotIds.has(slot.id));
+    return allSlots.filter(
+      (slot) => !busySlotIds.has(slot.id) && slot.status !== SlotStatus.OCCUPIED,
+    );
   }
 }
