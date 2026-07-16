@@ -244,8 +244,7 @@ export default function ManageSlots() {
                   <option value="available">AVAILABLE</option>
                   <option value="occupied">OCCUPIED</option>
                 </select>
-                <p className="text-xs text-slate-500 mt-1">Warning: Changing to AVAILABLE will not delete existing reservations.</p>
-                              <p className="text-xs text-slate-500 mt-1">Warning: Changing to AVAILABLE will cancel any active reservations.</p>
+                <p className="text-xs text-amber-600 mt-1">⚠️ Setting to AVAILABLE will cancel any active reservation on this slot.</p>
               </div>
               <div className="flex space-x-4">
                 <button 

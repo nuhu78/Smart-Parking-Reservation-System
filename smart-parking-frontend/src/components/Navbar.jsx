@@ -60,6 +60,13 @@ export default function Navbar() {
                 
                 <span className="text-slate-400 mx-2">|</span>
                 <span className="text-sm text-slate-300 font-semibold hidden md:block">Hi, {user.fullName}</span>
+
+                <Link href="/profile" className="text-sm text-slate-300 hover:text-green-400 transition ml-3 hidden md:block" title="Edit Profile">
+                  Profile
+                </Link>
+                <Link href="/change-password" className="text-sm text-slate-300 hover:text-green-400 transition ml-2 hidden md:block" title="Change Password">
+                  Password
+                </Link>
                 
                 <button 
                   onClick={handleLogout}

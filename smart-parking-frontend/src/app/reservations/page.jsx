@@ -35,7 +35,7 @@ export default function MyReservations() {
       setReservations(reservations.filter(res => res.id !== id));
       alert("Reservation cancelled successfully.");
     } catch (error) {
-      alert("Failed to cancel reservation.");
+      alert(error.response?.data?.message || "Failed to cancel reservation.");
     }
   };
 
@@ -53,7 +53,7 @@ export default function MyReservations() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {reservations.map((res) => {
             const normalizedStatus = res.status;
-            const isCancellable = normalizedStatus === 'active';
+            const isCancellable = normalizedStatus === 'active' && new Date(res.startTime) > new Date();
 
             return (
             <div key={res.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
@@ -93,7 +93,7 @@ export default function MyReservations() {
                 <div className="flex items-center text-slate-700">
                   <Calendar size={18} className="mr-2 text-slate-400" />
                   <span className="text-sm">
-                    {new Date(res.bookingTime).toLocaleString()}
+                    {new Date(res.startTime).toLocaleString()} – {new Date(res.endTime).toLocaleString()}
                   </span>
                 </div>
               </div>
