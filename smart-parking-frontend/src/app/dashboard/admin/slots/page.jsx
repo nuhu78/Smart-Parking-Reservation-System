@@ -2,264 +2,283 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
-import { Trash2, Plus, Edit } from 'lucide-react';
+import { Plus, Trash2, Edit } from 'lucide-react';
 
 export default function ManageSlots() {
-  const [slots, setSlots] = useState([]);
   const [locations, setLocations] = useState([]);
-  
-  // Create Form State
-  const [newSlotNumber, setNewSlotNumber] = useState('');
-  const [selectedLocationId, setSelectedLocationId] = useState('');
-
-  // NEW: Edit Modal State
+  const [slots, setSlots] = useState([]);
+  const [selectedAreaId, setSelectedAreaId] = useState('all');
+  const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
-  const [editSlotNumber, setEditSlotNumber] = useState('');
-  const [editStatus, setEditStatus] = useState('');
-  const [filterLocationId, setFilterLocationId] = useState('');
+  const [form, setForm] = useState({ areaId: '', section: '', slotNumber: '', type: 'standard', pricePerHour: '', floor: '' });
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [areasRes, slotsRes] = await Promise.all([
+          api.get('/parking'),
+          api.get('/slots'),
+        ]);
+        setLocations(areasRes.data.data);
+        setSlots(slotsRes.data);
+      } catch (error) {
+        console.error('Failed to fetch', error);
+      }
+    };
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      const [slotsRes, locationsRes] = await Promise.all([
-        api.get('/slots'),
-        api.get('/parking') // Note: using your updated /parking endpoint
-      ]);
-      setSlots(slotsRes.data.sort((a, b) => a.id - b.id)); 
-      setLocations(locationsRes.data.data);
-    } catch (error) {
-      console.error('Failed to fetch data', error);
-    }
-  };
+  const resetForm = () => setForm({ areaId: '', section: '', slotNumber: '', type: 'standard', pricePerHour: '', floor: '' });
+
+  const filteredSlots = selectedAreaId === 'all' ? slots : slots.filter((s) => s.areaId === Number(selectedAreaId));
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!newSlotNumber.trim() || !selectedLocationId) return;
-    
     try {
-      await api.post('/slots', { 
-        slotNumber: newSlotNumber, 
-        parkingAreaId: parseInt(selectedLocationId) 
+      await api.post('/slots', {
+        areaId: Number(form.areaId),
+        section: form.section,
+        slotNumber: form.slotNumber,
+        type: form.type,
+        pricePerHour: form.pricePerHour ? Number(form.pricePerHour) : undefined,
+        floor: form.floor ? Number(form.floor) : undefined,
       });
-      setNewSlotNumber('');
-      fetchData();
+      setShowCreate(false);
+      resetForm();
+      const res = await api.get('/slots');
+      setSlots(res.data);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to create slot');
+      const message = error?.response?.data?.message;
+      alert(Array.isArray(message) ? message.join(', ') : message || 'Failed to create slot');
+    }
+  };
+
+  const handleEdit = (slot) => {
+    setEditingSlot(slot);
+    setForm({
+      areaId: slot.areaId?.toString() || '',
+      section: slot.section || '',
+      slotNumber: slot.slotNumber || '',
+      type: slot.type || 'standard',
+      pricePerHour: slot.pricePerHour?.toString() || '',
+      floor: slot.floor?.toString() || '',
+    });
+    setShowEdit(true);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await api.patch(`/slots/${editingSlot.id}`, {
+        areaId: Number(form.areaId),
+        section: form.section,
+        slotNumber: form.slotNumber,
+        type: form.type,
+        pricePerHour: form.pricePerHour ? Number(form.pricePerHour) : undefined,
+        floor: form.floor ? Number(form.floor) : undefined,
+      });
+      setShowEdit(false);
+      setEditingSlot(null);
+      resetForm();
+      const res = await api.get('/slots');
+      setSlots(res.data);
+    } catch (error) {
+      const message = error?.response?.data?.message;
+      alert(Array.isArray(message) ? message.join(', ') : message || 'Failed to update slot');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this slot? Any active reservation will also be cancelled.")) return;
-    
+    if (!window.confirm('Delete this slot?')) return;
     try {
       await api.delete(`/slots/${id}`);
-      setSlots(slots.filter(slot => slot.id !== id));
+      setSlots(slots.filter((s) => s.id !== id));
     } catch (error) {
       alert('Failed to delete slot');
     }
   };
 
-  // NEW: Handle the Update submission
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    if (!editSlotNumber.trim()) return;
-    
-    try {
-      await api.patch(`/slots/${editingSlot.id}`, { 
-        slotNumber: editSlotNumber,
-        status: editStatus 
-      });
-      setEditingSlot(null); // Close modal
-      fetchData(); // Refresh table
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update slot');
-    }
+  const getStatusDot = (status) => {
+    if (status === 'available') return 'bg-[var(--status-available)]';
+    if (status === 'occupied') return 'bg-[var(--status-active)]';
+    if (status === 'reserved') return 'bg-[var(--accent-yellow)]';
+    if (status === 'maintenance') return 'bg-[var(--status-cancelled)]';
+    return 'bg-slate-500';
   };
 
+  const areaName = (id) => locations.find((l) => l.id === id)?.name || `Area #${id}`;
+
+  const renderFormFields = () => (
+    <>
+      <div>
+        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Parking Area</label>
+        <select
+          value={form.areaId}
+          onChange={(e) => setForm({ ...form, areaId: e.target.value })}
+          className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
+          required
+        >
+          <option value="">Select area</option>
+          {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Section</label>
+        <input
+          type="text"
+          value={form.section}
+          onChange={(e) => setForm({ ...form, section: e.target.value })}
+          placeholder="e.g., A"
+          className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Slot Number</label>
+        <input
+          type="text"
+          value={form.slotNumber}
+          onChange={(e) => setForm({ ...form, slotNumber: e.target.value })}
+          placeholder="e.g., 1"
+          className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Type</label>
+        <select
+          value={form.type}
+          onChange={(e) => setForm({ ...form, type: e.target.value })}
+          className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
+        >
+          <option value="standard">Standard</option>
+          <option value="ev">EV Charging</option>
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Price/Hour ($)</label>
+        <input
+          type="number"
+          step="0.01"
+          value={form.pricePerHour}
+          onChange={(e) => setForm({ ...form, pricePerHour: e.target.value })}
+          placeholder="Optional"
+          className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Floor</label>
+        <input
+          type="number"
+          value={form.floor}
+          onChange={(e) => setForm({ ...form, floor: e.target.value })}
+          placeholder="Optional"
+          className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
+        />
+      </div>
+    </>
+  );
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-      <h1 className="text-3xl font-bold text-slate-800 mb-8">Manage Parking Slots</h1>
-
-      {/* Add New Slot Form */}
-      <form onSubmit={handleCreate} className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 flex flex-wrap gap-4 items-end">
-        <div className="flex-grow min-w-[200px]">
-          <label className="block text-sm font-medium text-slate-700 mb-1">Assign to Location</label>
-          <select 
-            value={selectedLocationId}
-            onChange={(e) => {
-              setSelectedLocationId(e.target.value);
-              setFilterLocationId(e.target.value); // Also use Assign dropdown as the filter
-            }}
-            className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 bg-white"
-            required
-          >
-            <option value="" disabled>Select a parking area...</option>
-            {locations.map(loc => (
-              <option key={loc.id} value={loc.id}>{loc.name}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="flex-grow min-w-[150px]">
-          <label className="block text-sm font-medium text-slate-700 mb-1">Slot Identifier</label>
-          <input 
-            type="text" 
-            value={newSlotNumber}
-            onChange={(e) => setNewSlotNumber(e.target.value)}
-            placeholder="e.g., A-01"
-            className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:outline-none"
-            required
-          />
-        </div>
-
-        <button type="submit" className="bg-slate-800 text-white px-6 py-2 rounded hover:bg-slate-700 transition flex items-center font-medium h-[42px]">
-          <Plus size={20} className="mr-2" /> Create Slot
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Manage Slots</h1>
+        <button onClick={() => { setShowCreate(true); resetForm(); }} className="btn-primary text-sm px-5 py-2.5">
+          <Plus size={18} className="mr-1.5" /> Create Slot
         </button>
-      </form>
-      {/* Note: Removed separate "Filter by Location" control. The "Assign to Location" select above now also filters the list. */}
-
-      {/* Slots Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Slot Number</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Location</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
-            {filterLocationId && slots.map ? (
-              filterLocationId 
-                ? slots.filter(slot => slot.parkingArea?.id === parseInt(filterLocationId))
-                : slots
-            ).map((slot) => (
-              <tr key={slot.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{slot.slotNumber}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{slot.parkingArea?.name || 'Unknown'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full uppercase ${
-                    slot.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {slot.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  
-                  {/* NEW: Edit Button */}
-                  <button 
-                    onClick={() => {
-                      setEditingSlot(slot);
-                      setEditSlotNumber(slot.slotNumber);
-                      setEditStatus(slot.status);
-                    }} 
-                    className="text-blue-600 hover:text-blue-900 transition mr-4"
-                    title="Edit Slot"
-                  >
-                    <Edit size={18} />
-                  </button>
-
-                  <button 
-                    onClick={() => handleDelete(slot.id)} 
-                    className="text-red-600 hover:text-red-900 transition"
-                    title="Delete Slot"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            )) : ((slots || []).map((slot) => (
-              <tr key={slot.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{slot.slotNumber}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{slot.parkingArea?.name || 'Unknown'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full uppercase ${
-                    slot.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {slot.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  
-                  {/* NEW: Edit Button */}
-                  <button 
-                    onClick={() => {
-                      setEditingSlot(slot);
-                      setEditSlotNumber(slot.slotNumber);
-                      setEditStatus(slot.status);
-                    }} 
-                    className="text-blue-600 hover:text-blue-900 transition mr-4"
-                    title="Edit Slot"
-                  >
-                    <Edit size={18} />
-                  </button>
-
-                  <button 
-                    onClick={() => handleDelete(slot.id)} 
-                    className="text-red-600 hover:text-red-900 transition"
-                    title="Delete Slot"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))) }
-            {((filterLocationId 
-              ? slots.filter(slot => slot.parkingArea?.id === parseInt(filterLocationId))
-              : slots
-            ).length === 0) && (
-              <tr><td colSpan="4" className="px-6 py-4 text-center text-slate-500">No slots found.</td></tr>
-            )}
-          </tbody>
-        </table>
       </div>
 
-      {/* NEW: The Edit Modal (with background blur fix!) */}
-      {editingSlot && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Edit Slot</h2>
-            <form onSubmit={handleUpdate}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Slot Number</label>
-                <input 
-                  type="text" 
-                  value={editSlotNumber}
-                  onChange={(e) => setEditSlotNumber(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:outline-none"
-                  required
-                />
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Manual Status Override</label>
-                <select 
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 bg-white"
-                >
-                  <option value="available">AVAILABLE</option>
-                  <option value="occupied">OCCUPIED</option>
-                </select>
-                <p className="text-xs text-amber-600 mt-1">⚠️ Setting to AVAILABLE will cancel any active reservation on this slot.</p>
-              </div>
-              <div className="flex space-x-4">
-                <button 
-                  type="button"
-                  onClick={() => setEditingSlot(null)}
-                  className="flex-1 bg-slate-200 text-slate-800 py-2 rounded hover:bg-slate-300 transition"
-                >
+      <div className="card-dark p-4 mb-6 flex flex-wrap items-center gap-3">
+        <label className="text-sm text-[var(--text-secondary)]">Filter by area:</label>
+        <select
+          value={selectedAreaId}
+          onChange={(e) => setSelectedAreaId(e.target.value)}
+          className="px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm max-w-xs"
+        >
+          <option value="all">All Areas</option>
+          {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+        </select>
+      </div>
+
+      <div className="card-dark overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-700/30">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Area</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Section</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Slot #</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Floor</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Price/h</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/30">
+              {filteredSlots.map((slot) => (
+                <tr key={slot.id} className="hover:bg-white/5 transition">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{areaName(slot.areaId)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{slot.section}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{slot.slotNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.floor ?? '—'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">${Number(slot.pricePerHour || 0).toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-[var(--text-primary)]">
+                      <span className={`w-2 h-2 rounded-full ${getStatusDot(slot.status)}`} />
+                      <span className="capitalize">{slot.status}</span>
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                    <button onClick={() => handleEdit(slot)} className="text-[var(--accent-yellow)] hover:opacity-80 transition" title="Edit">
+                      <Edit size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(slot.id)} className="text-[var(--status-cancelled)] hover:opacity-80 transition" title="Delete">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredSlots.length === 0 && (
+                <tr><td colSpan="9" className="px-6 py-8 text-center text-[var(--text-secondary)]">No slots found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="card-dark p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">Create Slot</h2>
+            <form onSubmit={handleCreate} className="space-y-4">
+              {renderFormFields()}
+              <div className="flex space-x-3 pt-2">
+                <button type="button" onClick={() => setShowCreate(false)} className="flex-1 py-2 rounded-full border border-slate-700/30 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition text-sm">
                   Cancel
                 </button>
-                <button 
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-                >
-                  Save Changes
+                <button type="submit" className="flex-1 btn-primary text-sm py-2">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEdit && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="card-dark p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">Edit Slot</h2>
+            <form onSubmit={handleUpdate} className="space-y-4">
+              {renderFormFields()}
+              <div className="flex space-x-3 pt-2">
+                <button type="button" onClick={() => { setShowEdit(false); setEditingSlot(null); }} className="flex-1 py-2 rounded-full border border-slate-700/30 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition text-sm">
+                  Cancel
                 </button>
+                <button type="submit" className="flex-1 btn-primary text-sm py-2">Save Changes</button>
               </div>
             </form>
           </div>

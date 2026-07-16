@@ -1,125 +1,124 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import api from '@/services/api';
+import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { User, Save, ArrowLeft } from 'lucide-react';
-import Cookies from 'js-cookie';
+import api from '@/services/api';
+import { User, Save } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, login } = useAuthStore();
-  const router = useRouter();
-  const [fullName, setFullName] = useState('');
+  const [form, setForm] = useState({
+    fullName: user?.fullName || '',
+    phoneNumber: user?.phoneNumber || '',
+    defaultVehicleNumber: user?.defaultVehicleNumber || '',
+  });
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      setFullName(user.fullName || '');
-    }
-  }, [user]);
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setMessage('');
+    setError('');
+  };
 
-  const handleUpdateProfile = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!fullName.trim()) return;
-
+    setLoading(true);
+    setMessage('');
+    setError('');
     try {
-      setLoading(true);
-      setErrorMsg('');
-      setSuccessMsg('');
-
-      const response = await api.patch('/auth/profile', { fullName: fullName.trim() });
-
-      // Update the stored user data
-      const updatedUser = { ...user, fullName: response.data.fullName || fullName.trim() };
-      const token = Cookies.get('token');
-      login(updatedUser, token);
-
-      setSuccessMsg('Profile updated successfully!');
-      setTimeout(() => setSuccessMsg(''), 3000);
-    } catch (error) {
-      setErrorMsg(error.response?.data?.message || 'Failed to update profile');
+      const res = await api.patch('/auth/profile', form);
+      login(res.data.user || res.data, res.data.token);
+      setMessage('Profile updated successfully');
+    } catch (err) {
+      const msg = err?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
   };
 
+  const initials = user?.fullName
+    ? user.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.slice(0, 2).toUpperCase() || '?';
+
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-      <button
-        onClick={() => router.back()}
-        className="flex items-center text-slate-500 hover:text-slate-800 transition mb-6"
-      >
-        <ArrowLeft size={20} className="mr-2" /> Back
-      </button>
-
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-8">
-        <div className="flex items-center mb-6">
-          <div className="bg-slate-100 p-3 rounded-full mr-4">
-            <User size={28} className="text-slate-700" />
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-yellow)] flex items-center justify-center mb-4">
+            <span className="text-2xl font-bold text-white">{initials}</span>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">My Profile</h1>
-            <p className="text-slate-500 text-sm">{user?.email}</p>
-          </div>
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">{user?.fullName || 'Your Profile'}</h1>
+          <p className="text-sm text-[var(--text-secondary)]">{user?.email}</p>
+          <span className={`mt-2 text-xs font-medium px-3 py-0.5 rounded-full ${user?.role === 'admin' ? 'pill-warning' : 'pill-primary'}`}>
+            {user?.role}
+          </span>
         </div>
 
-        {successMsg && (
-          <div className="bg-green-100 text-green-800 p-3 rounded mb-4 text-sm text-center font-medium">
-            {successMsg}
-          </div>
-        )}
-
-        {errorMsg && (
-          <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm text-center">
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleUpdateProfile} className="space-y-6">
+        <form onSubmit={handleSubmit} className="card-dark p-6 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Full Name</label>
+            <input
+              type="text"
+              name="fullName"
+              value={form.fullName}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm placeholder-[var(--text-secondary)]"
+              placeholder="Your full name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Phone Number</label>
+            <input
+              type="tel"
+              name="phoneNumber"
+              value={form.phoneNumber}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm placeholder-[var(--text-secondary)]"
+              placeholder="+1234567890"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Default Vehicle Number</label>
+            <input
+              type="text"
+              name="defaultVehicleNumber"
+              value={form.defaultVehicleNumber}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm placeholder-[var(--text-secondary)]"
+              placeholder="e.g., ABC-1234"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Email</label>
             <input
               type="email"
               value={user?.email || ''}
               disabled
-              className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-slate-500 cursor-not-allowed"
-            />
-            <p className="text-xs text-slate-400 mt-1">Email cannot be changed</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-green-500 focus:outline-none"
-              placeholder="Enter your full name"
-              required
+              className="w-full px-4 py-3 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-secondary)] text-sm cursor-not-allowed"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
-            <input
-              type="text"
-              value={user?.role || ''}
-              disabled
-              className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-slate-500 cursor-not-allowed capitalize"
-            />
-          </div>
+          {message && (
+            <div className="text-sm text-center text-[var(--status-available)] bg-[var(--status-available)]/10 py-2 rounded-full">
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="text-sm text-center text-[var(--status-cancelled)] bg-[var(--status-cancelled)]/10 py-2 rounded-full">
+              {error}
+            </div>
+          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-semibold disabled:opacity-50 flex items-center justify-center"
-          >
-            <Save size={18} className="mr-2" />
-            {loading ? 'Saving...' : 'Save Changes'}
+          <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-sm rounded-full">
+            {loading ? 'Saving...' : (
+              <><Save size={18} className="mr-1.5 inline" /> Save Changes</>
+            )}
           </button>
         </form>
       </div>
