@@ -95,6 +95,22 @@ export class SlotsService {
   }
 
   async update(id: number, updateData: UpdateSlotDto) {
+    const slot = await this.slotsRepository.findOne({
+      where: { id },
+      relations: ['parkingArea'],
+    });
+    if (!slot) throw new NotFoundException('Slot not found');
+
+    if (updateData.slotNumber !== undefined) slot.slotNumber = updateData.slotNumber;
+    if (updateData.status !== undefined) slot.status = updateData.status;
+    if (updateData.floor !== undefined) slot.floor = updateData.floor;
+    if (updateData.pricePerHour !== undefined) slot.pricePerHour = updateData.pricePerHour;
+    if (updateData.parkingAreaId !== undefined) {
+      const area = await this.parkingAreasRepository.findOneBy({ id: updateData.parkingAreaId });
+      if (!area) throw new NotFoundException(`Parking area ${updateData.parkingAreaId} not found`);
+      slot.parkingArea = area;
+    }
+
     if (updateData.status === SlotStatus.AVAILABLE) {
       const reservation = await this.reservationsRepository.findOne({
         where: { slot: { id }, status: ReservationStatus.ACTIVE },
@@ -105,19 +121,15 @@ export class SlotsService {
         reservation.status = ReservationStatus.CANCELLED;
         await this.reservationsRepository.save(reservation);
 
-        try {
-          await this.mailService.sendReservationCancelled(
-            reservation.user.email,
-            reservation.user.fullName,
-            reservation.slot.slotNumber,
-          );
-        } catch (err) {
-          console.error('Failed to send cancellation email', err);
-        }
+        this.mailService.sendReservationCancelled(
+          reservation.user.email,
+          reservation.user.fullName,
+          reservation.slot.slotNumber,
+        ).catch((err) => console.error('Failed to send cancellation email', err));
       }
     }
 
-    await this.slotsRepository.update(id, updateData);
+    await this.slotsRepository.save(slot);
     return this.slotsRepository.findOne({
       where: { id },
       relations: ['parkingArea'],
