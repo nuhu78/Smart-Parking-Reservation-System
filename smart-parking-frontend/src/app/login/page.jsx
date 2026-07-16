@@ -6,25 +6,21 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
+import { Car } from 'lucide-react';
 
 export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  
-  // Bring in the login function from our Zustand store
   const loginAction = useAuthStore((state) => state.login);
 
   const onSubmit = async (data) => {
     try {
       setErrorMsg('');
       setLoading(true);
-      console.log('Submitting login', data);
 
       const response = await api.post('/auth/login', data);
-      console.log('Login response', response?.data);
-
       const token = response.data?.access_token;
       if (!token) {
         setErrorMsg('Login succeeded but no token returned');
@@ -33,11 +29,8 @@ export default function LoginPage() {
       }
 
       const profileResponse = await api.get('/auth/me', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('/auth/me response', profileResponse?.data);
 
       loginAction(profileResponse.data, token);
 
@@ -46,13 +39,10 @@ export default function LoginPage() {
       } else {
         router.push('/dashboard/user');
       }
-
     } catch (error) {
-      console.error('Login error', error);
-      // Prefer backend message, otherwise show status/text
-      const backendMessage = error.response?.data?.message;
-      if (backendMessage) {
-        setErrorMsg(Array.isArray(backendMessage) ? backendMessage.join(', ') : backendMessage);
+      const msg = error.response?.data?.message;
+      if (msg) {
+        setErrorMsg(Array.isArray(msg) ? msg.join(', ') : msg);
       } else if (error.response) {
         setErrorMsg(`${error.response.status} ${error.response.statusText}`);
       } else {
@@ -64,53 +54,71 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md border-t-4 border-slate-800">
-        <h2 className="text-2xl font-bold text-slate-800 text-center mb-6">Welcome Back</h2>
-        
-        {errorMsg && (
-          <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm text-center">
-            {errorMsg}
-          </div>
-        )}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0D0D0D] via-[#1A1A2E] to-[#0D0D0D] px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-[var(--accent-purple)] to-[var(--accent-purple-hover)]" />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Email Address</label>
-            <input 
-              type="email"
-              {...register('email', { required: 'Email is required' })}
-              className="mt-1 w-full p-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-slate-800"
-            />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+        <div className="p-8">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-purple)] to-[var(--accent-purple-hover)] flex items-center justify-center">
+                <Car size={22} className="text-white" />
+              </div>
+              <span className="text-xl font-bold text-[#0D0D0D]">SmartPark</span>
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">Welcome Back</h2>
+            <p className="text-slate-500 text-sm mt-1">Sign in to your account</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Password</label>
-            <input 
-              type="password"
-              {...register('password', { required: 'Password is required' })}
-              className="mt-1 w-full p-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-slate-800"
-            />
-            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
+          {errorMsg && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm text-center border border-red-100">
+              {errorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+              <input
+                type="email"
+                {...register('email', { required: 'Email is required' })}
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                placeholder="you@example.com"
+              />
+              {errors.email && <p className="text-red-500 text-xs mt-1 ml-2">{errors.email.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+              <input
+                type="password"
+                {...register('password', { required: 'Password is required' })}
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                placeholder="Enter your password"
+              />
+              {errors.password && <p className="text-red-500 text-xs mt-1 ml-2">{errors.password.message}</p>}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 rounded-full bg-gradient-to-r from-[var(--accent-purple)] to-[var(--accent-purple-hover)] text-white font-semibold text-sm hover:opacity-90 transition disabled:opacity-50"
+            >
+              {loading ? 'Logging in...' : 'Log In'}
+            </button>
+          </form>
+
+          <div className="mt-5 space-y-2 text-center">
+            <Link href="/forgot-password" className="text-sm text-[var(--accent-purple)] hover:underline font-medium">
+              Forgot your password?
+            </Link>
+            <p className="text-sm text-slate-500">
+              Don&apos;t have an account?{' '}
+              <Link href="/register" className="text-[var(--accent-purple)] hover:underline font-medium">
+                Register
+              </Link>
+            </p>
           </div>
-
-          <button 
-            type="submit" 
-            className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700 transition font-semibold"
-            disabled={loading}
-          >
-            {loading ? 'Logging in…' : 'Log In'}
-          </button>
-        </form>
-
-       <div className="mt-4 space-y-2">
-          <p className="text-center text-sm text-slate-600">
-            Forgot your password? <Link href="/forgot-password" className="text-slate-800 hover:underline font-medium">Reset here</Link>
-          </p>
-          <p className="text-center text-sm text-slate-600">
-            Don't have an account? <Link href="/register" className="text-slate-800 hover:underline font-medium">Register</Link>
-          </p>
         </div>
       </div>
     </div>
