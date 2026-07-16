@@ -29,6 +29,9 @@ export class Slot {
   @Column({ type: 'int', nullable: true, default: 0 })
   floor?: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  pricePerHour?: number;
+
   @DeleteDateColumn()
   deletedAt?: Date;
 

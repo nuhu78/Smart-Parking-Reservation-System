@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
 
 export class CreateSlotDto {
   @IsString()
@@ -15,4 +15,9 @@ export class CreateSlotDto {
   @IsInt()
   @IsOptional()
   floor?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  pricePerHour?: number;
 }

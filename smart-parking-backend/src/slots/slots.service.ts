@@ -40,6 +40,8 @@ export class SlotsService {
     const slot = this.slotsRepository.create({
       slotNumber: createSlotDto.slotNumber,
       parkingArea,
+      floor: createSlotDto.floor,
+      pricePerHour: createSlotDto.pricePerHour,
     });
     return this.slotsRepository.save(slot);
   }
