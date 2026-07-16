@@ -31,7 +31,7 @@ export default function ManageSlots() {
 
   const resetForm = () => setForm({ areaId: '', section: '', slotNumber: '', type: 'standard', pricePerHour: '', floor: '' });
 
-  const filteredSlots = selectedAreaId === 'all' ? slots : slots.filter((s) => s.areaId === Number(selectedAreaId));
+  const filteredSlots = selectedAreaId === 'all' ? slots : slots.filter((s) => s.parkingArea?.id === Number(selectedAreaId));
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -57,7 +57,7 @@ export default function ManageSlots() {
   const handleEdit = (slot) => {
     setEditingSlot(slot);
     setForm({
-      areaId: slot.areaId?.toString() || '',
+      areaId: slot.parkingArea?.id?.toString() || '',
       section: slot.section || '',
       slotNumber: slot.slotNumber || '',
       type: slot.type || 'standard',
@@ -107,7 +107,7 @@ export default function ManageSlots() {
     return 'bg-slate-500';
   };
 
-  const areaName = (id) => locations.find((l) => l.id === id)?.name || `Area #${id}`;
+  const areaName = (slot) => slot.parkingArea?.name || `Area #${slot.parkingArea?.id}`;
 
   const renderFormFields = () => (
     <>
@@ -221,7 +221,7 @@ export default function ManageSlots() {
               {filteredSlots.map((slot) => (
                 <tr key={slot.id} className="hover:bg-white/5 transition">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{areaName(slot.areaId)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{areaName(slot)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{slot.section}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{slot.slotNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.type}</td>

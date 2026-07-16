@@ -109,6 +109,7 @@ export class ReservationsService {
   }
 
   async findMyReservations(userId: number): Promise<Reservation[]> {
+    await this.expireOverdueReservations();
     return this.reservationsRepository.find({
       where: { user: { id: userId } },
       relations: ['slot', 'slot.parkingArea'],
@@ -182,6 +183,7 @@ export class ReservationsService {
   }
 
   async findAll(status?: ReservationStatus): Promise<Reservation[]> {
+    await this.expireOverdueReservations();
     const where: any = {};
     if (status) {
       where.status = status;

@@ -45,6 +45,7 @@ export class SlotsService {
   }
 
   async findAll(parkingAreaId?: number, status?: SlotStatus): Promise<Slot[]> {
+    await this.expireOverdueReservations();
     const where: any = {};
     if (parkingAreaId) {
       where.parkingArea = { id: parkingAreaId };
@@ -57,6 +58,38 @@ export class SlotsService {
       relations: ['parkingArea'],
       order: { slotNumber: 'ASC' },
     });
+  }
+
+  private async expireOverdueReservations() {
+    const now = new Date();
+
+    const completed = await this.reservationsRepository.find({
+      where: {
+        status: ReservationStatus.ACTIVE,
+        endTime: LessThan(now),
+      },
+      relations: ['slot'],
+    });
+
+    for (const reservation of completed) {
+      reservation.status = ReservationStatus.COMPLETED;
+      await this.reservationsRepository.save(reservation);
+      await this.slotsRepository.update(reservation.slot.id, { status: SlotStatus.AVAILABLE });
+    }
+
+    const noShows = await this.reservationsRepository.find({
+      where: {
+        status: ReservationStatus.ACTIVE,
+        expiresAt: LessThan(now),
+      },
+      relations: ['slot'],
+    });
+
+    for (const reservation of noShows) {
+      reservation.status = ReservationStatus.EXPIRED;
+      await this.reservationsRepository.save(reservation);
+      await this.slotsRepository.update(reservation.slot.id, { status: SlotStatus.AVAILABLE });
+    }
   }
 
   async update(id: number, updateData: UpdateSlotDto) {
