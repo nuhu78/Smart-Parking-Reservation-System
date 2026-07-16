@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
-import { QRCode } from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 import { ArrowLeft, Car, MapPin, ExternalLink } from 'lucide-react';
 
 function formatDate(iso) {
@@ -99,7 +99,7 @@ export default function ParkingTicketPage() {
 
         <div className="flex justify-center mb-6">
           <div className="bg-white p-4 rounded-2xl">
-            <QRCode value={qrData} size={180} level="M" />
+            <QRCodeSVG value={qrData} size={180} level="M" />
           </div>
         </div>
 
