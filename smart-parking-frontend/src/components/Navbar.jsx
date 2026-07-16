@@ -20,6 +20,11 @@ export default function Navbar() {
     hydrateFromCookies();
   }, [hydrateFromCookies]);
 
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
   const isAdmin = user?.role === 'admin';
 
   if (!user || isAdmin) {
