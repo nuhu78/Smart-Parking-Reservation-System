@@ -12,7 +12,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-slate-50 min-h-screen flex flex-col`} suppressHydrationWarning>
+      <body className={`${inter.className} bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen flex flex-col`} suppressHydrationWarning>
         {/* The Navbar sits at the very top of the app */}
         <Navbar />
         
