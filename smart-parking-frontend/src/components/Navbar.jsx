@@ -2,13 +2,13 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Car } from 'lucide-react'; // A cool car icon for your logo
+import { Car, MapPin, Bell } from 'lucide-react';
 
 export default function Navbar() {
   const router = useRouter();
-  // Pull our global state
+  const pathname = usePathname();
   const { user, logout, hydrateFromCookies } = useAuthStore();
   const logoHref = user
     ? user.role === 'admin'
@@ -20,64 +20,76 @@ export default function Navbar() {
     hydrateFromCookies();
   }, [hydrateFromCookies]);
 
-  const handleLogout = () => {
-    logout(); // Clears the cookies and state
-    router.push('/login'); // Sends them back to login
-  };
+  const isAdmin = user?.role === 'admin';
 
-  return (
-    <nav className="bg-slate-900 text-white shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* Logo Section */}
-          <Link href={logoHref} className="flex items-center space-x-2 text-green-400 hover:text-green-300 transition">
-            <Car size={28} />
-            <span className="font-bold text-xl tracking-wide">SmartPark</span>
-          </Link>
+  if (!user || isAdmin) {
+    return (
+      <nav className="bg-[var(--bg-card)] border-b border-slate-700/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            <Link href={logoHref} className="flex items-center space-x-2 text-[var(--accent-yellow)] hover:opacity-80 transition">
+              <Car size={26} />
+              <span className="font-bold text-xl tracking-wide">SmartPark</span>
+            </Link>
 
-          {/* Navigation Links */}
-          <div className="flex space-x-4 items-center">
-            {/* If NOT logged in, show Login/Register */}
             {!user ? (
-              <>
-                <Link href="/login" className="hover:text-green-400 transition font-medium">Log In</Link>
-                <Link href="/register" className="bg-green-600 px-4 py-2 rounded font-medium hover:bg-green-500 transition">
+              <div className="flex items-center space-x-3">
+                <Link href="/login" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition font-medium">
+                  Log In
+                </Link>
+                <Link
+                  href="/register"
+                  className="btn-primary text-sm px-4 py-2"
+                >
                   Register
                 </Link>
-              </>
+              </div>
             ) : (
-              /* If logged in, show their specific Dashboard and Logout */
-              <>
-               {user.role === 'admin' ? (
-  <Link href="/dashboard/admin" className="hover:text-green-400 transition font-medium">Admin Panel</Link>
-) : (
-  <>
-    <Link href="/dashboard/user" className="hover:text-green-400 transition font-medium">Book Parking</Link>
-    <Link href="/reservations" className="hover:text-green-400 transition font-medium ml-4">My Bookings</Link>
-  </>
-)}
-                
-                <span className="text-slate-400 mx-2">|</span>
-                <span className="text-sm text-slate-300 font-semibold hidden md:block">Hi, {user.fullName}</span>
-
-                <Link href="/profile" className="text-sm text-slate-300 hover:text-green-400 transition ml-3 hidden md:block" title="Edit Profile">
-                  Profile
+              <div className="flex items-center space-x-3">
+                <Link href="/dashboard/admin" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition font-medium">
+                  Admin Panel
                 </Link>
-                <Link href="/change-password" className="text-sm text-slate-300 hover:text-green-400 transition ml-2 hidden md:block" title="Change Password">
-                  Password
-                </Link>
-                
-                <button 
+                <span className="text-slate-600 text-sm">Hi, {user.fullName}</span>
+                <button
                   onClick={handleLogout}
-                  className="bg-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-500 transition ml-4"
+                  className="text-sm text-[var(--status-cancelled)] hover:opacity-80 transition font-medium"
                 >
                   Log Out
                 </button>
-              </>
+              </div>
             )}
           </div>
+        </div>
+      </nav>
+    );
+  }
 
+  return (
+    <nav className="sticky top-0 z-50 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-slate-700/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-12">
+          <div className="flex items-center space-x-2 text-[var(--text-secondary)]">
+            <MapPin size={16} className="text-[var(--accent-yellow)]" />
+            <span className="text-xs">Main Branch</span>
+          </div>
+
+          <Link href={logoHref} className="flex items-center space-x-2 text-[var(--accent-yellow)] hover:opacity-80 transition absolute left-1/2 -translate-x-1/2">
+            <Car size={22} />
+            <span className="font-bold text-base tracking-wide">SmartPark</span>
+          </Link>
+
+          <div className="flex items-center space-x-3">
+            <button className="relative text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition" title="Notifications">
+              <Bell size={18} />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--status-active)] rounded-full" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-[var(--status-cancelled)] hover:opacity-80 transition font-medium"
+            >
+              Log Out
+            </button>
+          </div>
         </div>
       </div>
     </nav>
