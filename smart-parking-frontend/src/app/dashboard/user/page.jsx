@@ -50,6 +50,17 @@ export default function UserDashboard() {
     return () => clearTimeout(delayDebounce);
   }, [searchTerm]);
 
+  const getPriceRange = (area) => {
+    const prices = (area.slots || []).map(
+      (s) => parseFloat(s.pricePerHour ?? area.pricePerHour)
+    );
+    if (prices.length === 0) return { min: area.pricePerHour, max: area.pricePerHour };
+    return {
+      min: Math.min(...prices).toFixed(2),
+      max: Math.max(...prices).toFixed(2),
+    };
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
       <div className="mb-6 sm:mb-8">
@@ -95,12 +106,9 @@ export default function UserDashboard() {
         <>
           <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 sm:hidden">
             {parkingAreas.map((area, index) => {
+              const range = getPriceRange(area);
               const dist = dummyDistances[index % dummyDistances.length];
               const grad = gradients[index % gradients.length];
-              const price = area.pricePerHour
-                ? `$${parseFloat(area.pricePerHour).toFixed(0)}`
-                : '$5';
-
               return (
                 <Link
                   key={area.id}
@@ -110,7 +118,7 @@ export default function UserDashboard() {
                   <div className={`h-36 rounded-t-[1rem] bg-gradient-to-br ${grad} flex items-center justify-center relative`}>
                     <Car size={48} className="text-white/30" />
                     <span className="absolute top-3 right-3 bg-[var(--accent-yellow)] text-[#0D0D0D] text-xs font-bold px-2.5 py-1 rounded-full">
-                      {price}/hour
+                      ${range.min} - ${range.max} / hour
                     </span>
                   </div>
                   <div className="p-4">
@@ -134,12 +142,9 @@ export default function UserDashboard() {
 
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {parkingAreas.map((area, index) => {
+              const range = getPriceRange(area);
               const dist = dummyDistances[index % dummyDistances.length];
               const grad = gradients[index % gradients.length];
-              const price = area.pricePerHour
-                ? `$${parseFloat(area.pricePerHour).toFixed(0)}`
-                : '$5';
-
               return (
                 <Link
                   key={area.id}
@@ -149,7 +154,7 @@ export default function UserDashboard() {
                   <div className={`h-36 rounded-t-[1rem] bg-gradient-to-br ${grad} flex items-center justify-center relative`}>
                     <Car size={48} className="text-white/30" />
                     <span className="absolute top-3 right-3 bg-[var(--accent-yellow)] text-[#0D0D0D] text-xs font-bold px-2.5 py-1 rounded-full">
-                      {price}/hour
+                      ${range.min} - ${range.max} / hour
                     </span>
                   </div>
                   <div className="p-4">
