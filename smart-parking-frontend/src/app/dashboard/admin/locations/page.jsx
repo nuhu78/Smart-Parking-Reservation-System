@@ -8,11 +8,9 @@ export default function ManageLocations() {
   const [locations, setLocations] = useState([]);
   const [newLocationName, setNewLocationName] = useState('');
   const [newLocationAddress, setNewLocationAddress] = useState('');
-  const [newLocationPrice, setNewLocationPrice] = useState('');
   const [editingLocation, setEditingLocation] = useState(null);
   const [editName, setEditName] = useState('');
   const [editAddress, setEditAddress] = useState('');
-  const [editPrice, setEditPrice] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -39,10 +37,9 @@ export default function ManageLocations() {
     e.preventDefault();
     if (!newLocationName.trim() || !newLocationAddress.trim()) return;
     try {
-      await api.post('/parking', { name: newLocationName, location: newLocationAddress, pricePerHour: newLocationPrice ? Number(newLocationPrice) : undefined });
+      await api.post('/parking', { name: newLocationName, location: newLocationAddress });
       setNewLocationName('');
       setNewLocationAddress('');
-      setNewLocationPrice('');
       fetchLocations();
     } catch (error) {
       const message = error?.response?.data?.message;
@@ -64,7 +61,7 @@ export default function ManageLocations() {
     e.preventDefault();
     if (!editName.trim() || !editAddress.trim()) return;
     try {
-      await api.patch(`/parking/${editingLocation.id}`, { name: editName, location: editAddress, pricePerHour: editPrice ? Number(editPrice) : undefined });
+      await api.patch(`/parking/${editingLocation.id}`, { name: editName, location: editAddress });
       setEditingLocation(null);
       fetchLocations();
     } catch (error) {
@@ -100,18 +97,7 @@ export default function ManageLocations() {
             required
           />
         </div>
-        <div className="grow min-w-[120px]">
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Price/Hour ($)</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={newLocationPrice}
-            onChange={(e) => setNewLocationPrice(e.target.value)}
-            placeholder="0.00"
-            className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm placeholder-[var(--text-secondary)]"
-          />
-        </div>
+
         <button type="submit" className="btn-primary text-sm px-6 py-2.5 h-[42px]">
           <Plus size={18} className="mr-1.5" /> Add Location
         </button>
@@ -125,7 +111,6 @@ export default function ManageLocations() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">ID</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Address</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Price/h</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -135,10 +120,9 @@ export default function ManageLocations() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{loc.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary)]">{loc.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{loc.location}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--accent-yellow)] font-semibold">${Number(loc.pricePerHour || 0).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                     <button
-                      onClick={() => { setEditingLocation(loc); setEditName(loc.name); setEditAddress(loc.location || ''); setEditPrice(loc.pricePerHour || ''); }}
+                      onClick={() => { setEditingLocation(loc); setEditName(loc.name); setEditAddress(loc.location || ''); }}
                       className="text-[var(--accent-yellow)] hover:opacity-80 transition"
                       title="Edit"
                     >
@@ -155,7 +139,7 @@ export default function ManageLocations() {
                 </tr>
               ))}
               {locations.length === 0 && (
-                <tr><td colSpan="5" className="px-6 py-8 text-center text-[var(--text-secondary)]">No locations found.</td></tr>
+                <tr><td colSpan="4" className="px-6 py-8 text-center text-[var(--text-secondary)]">No locations found.</td></tr>
               )}
             </tbody>
           </table>
@@ -185,17 +169,6 @@ export default function ManageLocations() {
                   onChange={(e) => setEditAddress(e.target.value)}
                   className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
                   required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Price/Hour ($)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
-                  className="w-full px-4 py-2 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-purple)] text-sm"
                 />
               </div>
               <div className="flex space-x-3 pt-2">

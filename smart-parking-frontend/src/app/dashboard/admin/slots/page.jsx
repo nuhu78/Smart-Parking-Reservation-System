@@ -222,9 +222,9 @@ export default function ManageSlots() {
                 <tr key={slot.id} className="hover:bg-white/5 transition">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{areaName(slot)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{slot.section}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{slot.section || '—'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">{slot.slotNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm capitalize text-[var(--text-secondary)]">{slot.type || 'standard'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{slot.floor ?? '—'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">${Number(slot.pricePerHour || 0).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">

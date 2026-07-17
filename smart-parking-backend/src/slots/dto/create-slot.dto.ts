@@ -5,12 +5,22 @@ import {
   IsOptional,
   IsString,
   IsNumber,
+  IsEnum,
 } from 'class-validator';
+import { SlotType } from '../slot.entity';
 
 export class CreateSlotDto {
   @IsString()
   @IsNotEmpty()
   slotNumber!: string;
+
+  @IsString()
+  @IsOptional()
+  section?: string;
+
+  @IsEnum(SlotType)
+  @IsOptional()
+  type?: SlotType;
 
   @Type(() => Number)
   @IsInt()

@@ -15,6 +15,11 @@ export enum SlotStatus {
   OCCUPIED = 'occupied',
 }
 
+export enum SlotType {
+  STANDARD = 'standard',
+  EV = 'ev',
+}
+
 @Entity('slots')
 export class Slot {
   @PrimaryGeneratedColumn('increment')
@@ -22,6 +27,12 @@ export class Slot {
 
   @Column()
   slotNumber!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  section?: string;
+
+  @Column({ type: 'enum', enum: SlotType, default: SlotType.STANDARD })
+  type!: SlotType;
 
   @Column({ type: 'enum', enum: SlotStatus, default: SlotStatus.AVAILABLE })
   status!: SlotStatus;

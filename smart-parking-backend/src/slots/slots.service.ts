@@ -39,6 +39,8 @@ export class SlotsService {
 
     const slot = this.slotsRepository.create({
       slotNumber: createSlotDto.slotNumber,
+      section: createSlotDto.section,
+      type: createSlotDto.type,
       parkingArea,
       floor: createSlotDto.floor,
       pricePerHour: createSlotDto.pricePerHour,
@@ -107,6 +109,8 @@ export class SlotsService {
 
     if (updateData.slotNumber !== undefined)
       slot.slotNumber = updateData.slotNumber;
+    if (updateData.section !== undefined) slot.section = updateData.section;
+    if (updateData.type !== undefined) slot.type = updateData.type;
     if (updateData.status !== undefined) slot.status = updateData.status;
     if (updateData.floor !== undefined) slot.floor = updateData.floor;
     if (updateData.pricePerHour !== undefined)
