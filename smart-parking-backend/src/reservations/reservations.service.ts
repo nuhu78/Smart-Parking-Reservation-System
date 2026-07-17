@@ -89,14 +89,16 @@ export class ReservationsService {
 
     await this.slotsRepository.update(slotId, { status: SlotStatus.OCCUPIED });
 
-    this.mailService.sendReservationConfirmation(
-      user.email,
-      user.fullName,
-      slot.slotNumber,
-      slot.parkingArea.name,
-      startTime,
-      endTime,
-    ).catch((err) => console.error('Failed to send confirmation email', err));
+    this.mailService
+      .sendReservationConfirmation(
+        user.email,
+        user.fullName,
+        slot.slotNumber,
+        slot.parkingArea.name,
+        startTime,
+        endTime,
+      )
+      .catch((err) => console.error('Failed to send confirmation email', err));
 
     return reservation;
   }
@@ -140,11 +142,13 @@ export class ReservationsService {
       status: SlotStatus.AVAILABLE,
     });
 
-    this.mailService.sendReservationCancelled(
-      user.email,
-      user.fullName,
-      reservation.slot.slotNumber,
-    ).catch((err) => console.error('Failed to send cancellation email', err));
+    this.mailService
+      .sendReservationCancelled(
+        user.email,
+        user.fullName,
+        reservation.slot.slotNumber,
+      )
+      .catch((err) => console.error('Failed to send cancellation email', err));
 
     return { message: 'Reservation successfully cancelled' };
   }
@@ -173,6 +177,31 @@ export class ReservationsService {
     }
 
     return { message: 'Reservation cancelled and slot freed' };
+  }
+
+  async removeReservation(
+    reservationId: number,
+    userId: number,
+  ): Promise<{ message: string }> {
+    const reservation = await this.reservationsRepository.findOne({
+      where: { id: reservationId, user: { id: userId } },
+      relations: ['slot'],
+    });
+
+    if (!reservation) {
+      throw new NotFoundException('Reservation not found');
+    }
+
+    if (reservation.status === ReservationStatus.ACTIVE) {
+      if (reservation.startTime > new Date()) {
+        await this.slotsRepository.update(reservation.slot.id, {
+          status: SlotStatus.AVAILABLE,
+        });
+      }
+    }
+
+    await this.reservationsRepository.remove(reservation);
+    return { message: 'Reservation deleted successfully' };
   }
 
   async findAll(status?: ReservationStatus): Promise<Reservation[]> {

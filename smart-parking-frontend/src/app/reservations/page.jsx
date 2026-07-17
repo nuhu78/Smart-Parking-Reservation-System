@@ -76,6 +76,16 @@ export default function MyReservations() {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this reservation permanently?')) return;
+    try {
+      await api.delete(`/reservations/${id}/remove`);
+      setReservations(reservations.filter((r) => r.id !== id));
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to delete reservation.');
+    }
+  };
+
   const filtered = reservations.filter((r) => statusToTab(r.status) === activeTab);
 
   return (
@@ -120,8 +130,9 @@ export default function MyReservations() {
           {filtered.map((res) => {
             const isExpanded = expandedId === res.id;
             const dur = getDurationHours(res.startTime, res.endTime);
-            const price = res.slot?.parkingArea?.pricePerHour
-              ? (parseFloat(res.slot.parkingArea.pricePerHour) * dur).toFixed(2)
+            const effectivePrice = res.slot?.pricePerHour ?? res.slot?.parkingArea?.pricePerHour;
+            const price = effectivePrice
+              ? (parseFloat(effectivePrice) * dur).toFixed(2)
               : null;
             const badge = getBadge(res.status, res.createdAt);
             const isCancellable = res.status === 'active' && new Date(res.startTime) > new Date();
@@ -175,6 +186,14 @@ export default function MyReservations() {
                     >
                       View Ticket
                     </Link>
+                    {res.status !== 'active' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(res.id); }}
+                        className="text-[11px] text-[var(--status-cancelled)] hover:underline font-medium"
+                      >
+                        Delete
+                      </button>
+                    )}
                     {isCancellable && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleCancel(res.id); }}

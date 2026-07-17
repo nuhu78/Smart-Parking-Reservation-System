@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
 import { QRCodeSVG } from 'qrcode.react';
 import { ArrowLeft, Car, MapPin, ExternalLink } from 'lucide-react';
 
@@ -21,6 +22,7 @@ function getDurationHours(start, end) {
 export default function ParkingTicketPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { user } = useAuthStore();
   const [reservation, setReservation] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,6 +68,8 @@ export default function ParkingTicketPage() {
   }
 
   const dur = getDurationHours(reservation.startTime, reservation.endTime);
+  const effectivePrice = reservation.slot?.pricePerHour ?? reservation.slot?.parkingArea?.pricePerHour;
+  const totalPrice = effectivePrice ? (parseFloat(effectivePrice) * dur).toFixed(2) : null;
   const qrData = JSON.stringify({
     id: reservation.id,
     slot: reservation.slot?.slotNumber,
@@ -106,7 +110,7 @@ export default function ParkingTicketPage() {
         <div className="bg-[var(--bg-primary)] rounded-xl p-4 space-y-3 text-sm mb-6">
           <div className="flex justify-between">
             <span className="text-[var(--text-secondary)]">Name</span>
-            <span className="text-[var(--text-primary)] font-medium text-right">{reservation.user?.fullName || '—'}</span>
+            <span className="text-[var(--text-primary)] font-medium text-right">{user?.fullName || '—'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[var(--text-secondary)]">Vehicle Number</span>
@@ -126,6 +130,12 @@ export default function ParkingTicketPage() {
             <span className="text-[var(--text-secondary)]">Duration</span>
             <span className="text-[var(--text-primary)] font-medium text-right">{dur} hour{dur !== 1 ? 's' : ''}</span>
           </div>
+          {totalPrice && (
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Total Price</span>
+              <span className="text-[var(--accent-yellow)] font-bold text-right">${totalPrice}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-[var(--text-secondary)]">Time</span>
             <span className="text-[var(--text-primary)] font-medium text-right">{formatTime(reservation.startTime)} — {formatTime(reservation.endTime)}</span>

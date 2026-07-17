@@ -76,7 +76,9 @@ export class SlotsService {
     for (const reservation of completed) {
       reservation.status = ReservationStatus.COMPLETED;
       await this.reservationsRepository.save(reservation);
-      await this.slotsRepository.update(reservation.slot.id, { status: SlotStatus.AVAILABLE });
+      await this.slotsRepository.update(reservation.slot.id, {
+        status: SlotStatus.AVAILABLE,
+      });
     }
 
     const noShows = await this.reservationsRepository.find({
@@ -90,7 +92,9 @@ export class SlotsService {
     for (const reservation of noShows) {
       reservation.status = ReservationStatus.EXPIRED;
       await this.reservationsRepository.save(reservation);
-      await this.slotsRepository.update(reservation.slot.id, { status: SlotStatus.AVAILABLE });
+      await this.slotsRepository.update(reservation.slot.id, {
+        status: SlotStatus.AVAILABLE,
+      });
     }
   }
 
@@ -101,13 +105,20 @@ export class SlotsService {
     });
     if (!slot) throw new NotFoundException('Slot not found');
 
-    if (updateData.slotNumber !== undefined) slot.slotNumber = updateData.slotNumber;
+    if (updateData.slotNumber !== undefined)
+      slot.slotNumber = updateData.slotNumber;
     if (updateData.status !== undefined) slot.status = updateData.status;
     if (updateData.floor !== undefined) slot.floor = updateData.floor;
-    if (updateData.pricePerHour !== undefined) slot.pricePerHour = updateData.pricePerHour;
+    if (updateData.pricePerHour !== undefined)
+      slot.pricePerHour = updateData.pricePerHour;
     if (updateData.parkingAreaId !== undefined) {
-      const area = await this.parkingAreasRepository.findOneBy({ id: updateData.parkingAreaId });
-      if (!area) throw new NotFoundException(`Parking area ${updateData.parkingAreaId} not found`);
+      const area = await this.parkingAreasRepository.findOneBy({
+        id: updateData.parkingAreaId,
+      });
+      if (!area)
+        throw new NotFoundException(
+          `Parking area ${updateData.parkingAreaId} not found`,
+        );
       slot.parkingArea = area;
     }
 
@@ -121,11 +132,15 @@ export class SlotsService {
         reservation.status = ReservationStatus.CANCELLED;
         await this.reservationsRepository.save(reservation);
 
-        this.mailService.sendReservationCancelled(
-          reservation.user.email,
-          reservation.user.fullName,
-          reservation.slot.slotNumber,
-        ).catch((err) => console.error('Failed to send cancellation email', err));
+        this.mailService
+          .sendReservationCancelled(
+            reservation.user.email,
+            reservation.user.fullName,
+            reservation.slot.slotNumber,
+          )
+          .catch((err) =>
+            console.error('Failed to send cancellation email', err),
+          );
       }
     }
 
@@ -167,7 +182,8 @@ export class SlotsService {
 
     const busySlotIds = new Set(overlappingSlots.map((r) => r.slot.id));
     return allSlots.filter(
-      (slot) => !busySlotIds.has(slot.id) && slot.status !== SlotStatus.OCCUPIED,
+      (slot) =>
+        !busySlotIds.has(slot.id) && slot.status !== SlotStatus.OCCUPIED,
     );
   }
 }

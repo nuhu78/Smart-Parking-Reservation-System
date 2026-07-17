@@ -45,6 +45,11 @@ export class ReservationsController {
     return this.reservationsService.cancelReservation(+id, req.user);
   }
 
+  @Delete(':id/remove')
+  removeReservation(@Param('id') id: string, @Request() req: any) {
+    return this.reservationsService.removeReservation(+id, req.user.id);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Delete('slot/:slotId')
