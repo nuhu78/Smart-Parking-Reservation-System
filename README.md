@@ -1,6 +1,6 @@
 # Smart Parking Reservation System
 
-A full-stack application for managing parking reservations with real-time slot availability, user authentication, and admin controls. Built with NestJS backend and Next.js frontend.
+A full-stack application for managing parking reservations with real-time slot availability, user authentication, admin controls, and a live countdown timer with extend capability. Built with NestJS backend and Next.js frontend.
 
 ## 📋 Table of Contents
 
@@ -18,48 +18,57 @@ A full-stack application for managing parking reservations with real-time slot a
 
 Smart Parking Reservation System is a comprehensive solution for managing parking spaces and reservations. It provides:
 
-- **User Management**: Registration, login, and password reset functionality
+- **User Management**: Registration, login, profile update, and password reset functionality
 - **Parking Areas**: Create and manage different parking locations
-- **Parking Slots**: Dynamic slot creation and status management
-- **Reservations**: Book, view, and cancel parking slots
-- **Admin Dashboard**: Manage users, locations, and reservations
-- **Email Notifications**: Automated email confirmations and cancellations
+- **Parking Slots**: Dynamic slot creation with section, type (standard/EV), floor, and per-slot pricing
+- **Reservations**: Book, view, cancel, extend, and delete parking slots
+- **Live Timer**: Real-time countdown with circular progress and extend-parking modal
+- **QR Tickets**: Generate scannable QR codes for each reservation
+- **Admin Dashboard**: Manage locations, slots, and all reservations
+- **Email Notifications**: Automated confirmations and cancellations via Nodemailer
+- **Price Engine**: Server-side `totalPrice` calculation stored on each reservation
 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Framework**: NestJS (Node.js)
+- **Framework**: NestJS 11 (Node.js)
 - **Language**: TypeScript
-- **Database**: PostgreSQL with TypeORM
-- **Authentication**: JWT with Passport.js
+- **Database**: PostgreSQL with TypeORM (synchronize mode)
+- **Authentication**: JWT with Passport.js (bcrypt password hashing)
 - **Email Service**: Nodemailer with Handlebars templates
+- **Validation**: class-validator + class-transformer
 
 ### Frontend
-- **Framework**: Next.js (React)
-- **Styling**: CSS Modules
-- **State Management**: Zustand
+- **Framework**: Next.js 16 (React 19)
+- **Language**: JavaScript (JSX)
+- **Styling**: Tailwind CSS v4
+- **State Management**: Zustand + js-cookie
 - **HTTP Client**: Axios
+- **Icons**: lucide-react
+- **QR Code**: qrcode.react
 
 ## 📁 Project Structure
 
 ```
 smart-parking-backend/        # NestJS Backend
 ├── src/
-│   ├── auth/                 # Authentication module (JWT, roles)
-│   ├── parking/              # Parking areas management
-│   ├── slots/                # Parking slots management
-│   ├── reservations/         # Reservation management
-│   ├── users/                # User management
-│   ├── mail/                 # Email notifications
+│   ├── auth/                 # Authentication (JWT, roles, register, login, password reset)
+│   ├── parking/              # Parking areas CRUD
+│   ├── slots/                # Parking slots CRUD + availability queries
+│   ├── reservations/         # Reservation CRUD + extend + expire
+│   ├── seed/                 # Auto-seeds admin account on startup
+│   ├── users/                # User entity
+│   ├── mail/                 # Email notifications (Handlebars templates)
 │   └── main.ts              # Application entry point
 └── test/                     # E2E and unit tests
 
 smart-parking-frontend/       # Next.js Frontend
 ├── src/
-│   ├── app/                  # Page components
-│   ├── components/           # Reusable components
-│   ├── services/             # API client services
-│   └── store/                # State management
+│   ├── app/                  # Page components (login, register, dashboard, parking, reservations, timer)
+│   ├── components/           # Navbar, BottomNav
+│   ├── services/             # Axios API client
+│   ├── store/                # Zustand auth store
+│   └── proxy.js             # Auth middleware (role-based redirects)
 └── public/                   # Static assets
 ```
 
@@ -102,7 +111,7 @@ POST /auth/register
 {
   "email": "user@example.com",
   "password": "password123",
-  "name": "John Doe"
+  "fullName": "John Doe"
 }
 ```
 - **Response**: User object with JWT token
@@ -133,7 +142,7 @@ POST /auth/register-admin
 {
   "email": "admin@example.com",
   "password": "password123",
-  "name": "Admin User"
+  "fullName": "Admin User"
 }
 ```
 - **Response**: Admin user object with JWT token
@@ -146,7 +155,37 @@ GET /auth/me
 - **Authentication**: ✅ Required (JWT)
 - **Response**: User object
 
-#### 5. **Forgot Password**
+#### 5. **Update Profile**
+```http
+PATCH /auth/profile
+```
+**Description**: Update the authenticated user's profile
+- **Authentication**: ✅ Required (JWT)
+- **Body**:
+```json
+{
+  "fullName": "New Name",
+  "phoneNumber": "01712345678"
+}
+```
+- **Response**: Updated user object
+
+#### 6. **Change Password**
+```http
+POST /auth/change-password
+```
+**Description**: Change password while authenticated
+- **Authentication**: ✅ Required (JWT)
+- **Body**:
+```json
+{
+  "currentPassword": "oldpassword123",
+  "newPassword": "newpassword123"
+}
+```
+- **Response**: Success message
+
+#### 7. **Forgot Password**
 ```http
 POST /auth/forgot-password
 ```
@@ -160,7 +199,7 @@ POST /auth/forgot-password
 ```
 - **Response**: Success message with reset code sent
 
-#### 6. **Reset Password**
+#### 8. **Reset Password**
 ```http
 POST /auth/reset-password
 ```
@@ -191,8 +230,7 @@ POST /parking
 ```json
 {
   "name": "Downtown Parking",
-  "address": "123 Main Street",
-  
+  "location": "123 Main Street"
 }
 ```
 - **Response**: Created parking area object
@@ -201,11 +239,13 @@ POST /parking
 ```http
 GET /parking
 ```
-**Description**: Retrieve all parking locations with optional search
+**Description**: Retrieve all parking locations with optional search and pagination
 - **Authentication**: ✅ Required (JWT)
 - **Query Parameters**:
-  - `search` (optional): Search parking areas by name or address
-- **Response**: Array of parking area objects
+  - `search` (optional): Search parking areas by name
+  - `page` (optional): Page number (default 1)
+  - `limit` (optional): Items per page (default 20)
+- **Response**: `{ data: ParkingArea[], total, page, limit }`
 
 #### 3. **Update Parking Area**
 ```http
@@ -219,8 +259,7 @@ PATCH /parking/:id
 ```json
 {
   "name": "Downtown Parking Updated",
-  "address": "124 Main Street",
-  
+  "location": "124 Main Street"
 }
 ```
 - **Response**: Updated parking area object
@@ -229,7 +268,7 @@ PATCH /parking/:id
 ```http
 DELETE /parking/:id
 ```
-**Description**: Delete a parking location (Admin only)
+**Description**: Soft-delete a parking location and all associated slots/reservations (Admin only)
 - **Authentication**: ✅ Required (JWT)
 - **Authorization**: 🔒 Admin role required
 - **Parameters**: `id` - Parking area ID
@@ -250,8 +289,11 @@ POST /slots
 ```json
 {
   "slotNumber": "A-01",
+  "section": "A",
+  "type": "standard",
   "parkingAreaId": 1,
-  
+  "floor": 1,
+  "pricePerHour": 5.00
 }
 ```
 - **Response**: Created slot object
@@ -260,11 +302,24 @@ POST /slots
 ```http
 GET /slots
 ```
-**Description**: Retrieve all parking slots
+**Description**: Retrieve all parking slots, optionally filtered by area or status
 - **Authentication**: ✅ Required (JWT)
-- **Response**: Array of slot objects
+- **Query Parameters**:
+  - `parkingAreaId` (optional): Filter by area
+  - `status` (optional): Filter by status (`available`, `occupied`)
+- **Response**: Array of slot objects with parking area relation
 
-#### 3. **Update Slot**
+#### 3. **Get Available Slots**
+```http
+GET /slots/available/:parkingAreaId?startTime=...&endTime=...
+```
+**Description**: Get slots that are free during a given time window
+- **Authentication**: ✅ Required (JWT)
+- **Parameters**: `parkingAreaId` - Area ID
+- **Query Parameters**: `startTime`, `endTime` (ISO strings)
+- **Response**: Array of available slot objects
+
+#### 4. **Update Slot**
 ```http
 PATCH /slots/:id
 ```
@@ -275,17 +330,20 @@ PATCH /slots/:id
 - **Body**:
 ```json
 {
-  "status": "reserved",
-  "type": "handicap"
+  "section": "B",
+  "type": "ev",
+  "status": "available",
+  "floor": 2,
+  "pricePerHour": 6.00
 }
 ```
 - **Response**: Updated slot object
 
-#### 4. **Delete Slot**
+#### 5. **Delete Slot**
 ```http
 DELETE /slots/:id
 ```
-**Description**: Remove a parking slot (Admin only)
+**Description**: Soft-delete a parking slot (Admin only)
 - **Authentication**: ✅ Required (JWT)
 - **Authorization**: 🔒 Admin role required
 - **Parameters**: `id` - Slot ID
@@ -299,15 +357,20 @@ DELETE /slots/:id
 ```http
 POST /reservations
 ```
-**Description**: Reserve a parking slot
+**Description**: Reserve a parking slot. Total price is computed server-side from the slot's `pricePerHour` and duration.
 - **Authentication**: ✅ Required (JWT)
 - **Body**:
 ```json
 {
-  "slotId": 1
+  "slotId": 1,
+  "startTime": "2026-07-18T10:00:00.000Z",
+  "endTime": "2026-07-18T12:00:00.000Z",
+  "vehicleNumber": "ABC-1234",
+  "phoneNumber": "01712345678",
+  "vehicleType": "four_wheeler"
 }
 ```
-- **Response**: Created reservation object with confirmation details
+- **Response**: Created reservation object with `totalPrice`
 
 #### 2. **Get My Reservations**
 ```http
@@ -315,18 +378,42 @@ GET /reservations/my
 ```
 **Description**: Retrieve all reservations for the logged-in user
 - **Authentication**: ✅ Required (JWT)
-- **Response**: Array of user's reservation objects
+- **Response**: Array of user's reservation objects with slot and parking area
 
 #### 3. **Cancel Reservation**
 ```http
 DELETE /reservations/:id
 ```
-**Description**: Cancel an existing reservation
+**Description**: Cancel an active reservation (must be before start time)
 - **Authentication**: ✅ Required (JWT)
 - **Parameters**: `id` - Reservation ID
 - **Response**: Success message with cancellation details
 
-#### 4. **Cancel Reservation by Slot ID** (Admin only)
+#### 4. **Delete Reservation**
+```http
+DELETE /reservations/:id/remove
+```
+**Description**: Permanently delete a reservation record (for completed/cancelled entries)
+- **Authentication**: ✅ Required (JWT)
+- **Parameters**: `id` - Reservation ID
+- **Response**: Success message
+
+#### 5. **Extend Reservation**
+```http
+PATCH /reservations/:id/extend
+```
+**Description**: Extend an active reservation's end time. Total price is recalculated server-side.
+- **Authentication**: ✅ Required (JWT)
+- **Parameters**: `id` - Reservation ID
+- **Body**:
+```json
+{
+  "additionalMinutes": 30
+}
+```
+- **Response**: Updated reservation object with new `endTime` and `totalPrice`
+
+#### 6. **Cancel Reservation by Slot ID** (Admin only)
 ```http
 DELETE /reservations/slot/:slotId
 ```
@@ -335,6 +422,26 @@ DELETE /reservations/slot/:slotId
 - **Authorization**: 🔒 Admin role required
 - **Parameters**: `slotId` - Slot ID
 - **Response**: Success message
+
+#### 7. **Get All Reservations** (Admin only)
+```http
+GET /reservations
+```
+**Description**: View all reservations, optionally filtered by status
+- **Authentication**: ✅ Required (JWT)
+- **Authorization**: 🔒 Admin role required
+- **Query Parameters**:
+  - `status` (optional): `active`, `completed`, `cancelled`, `expired`
+- **Response**: Array of all reservation objects with user and slot details
+
+#### 8. **Expire Overdue Reservations** (Admin only)
+```http
+POST /reservations/expire
+```
+**Description**: Manually trigger expiry of overdue reservations
+- **Authentication**: ✅ Required (JWT)
+- **Authorization**: 🔒 Admin role required
+- **Response**: Object with counts of completed and expired reservations
 
 ---
 
@@ -354,26 +461,35 @@ GET /
 
 ### User Features
 - ✅ User registration and login
-- ✅ Password reset functionality
-- ✅ View available parking slots
-- ✅ Reserve parking slots
-- ✅ View personal reservations
-- ✅ Cancel reservations
+- ✅ Profile update and password change
+- ✅ Password reset via email code
+- ✅ View parking areas with dynamic price ranges
+- ✅ Browse slots with floor/section grouping
+- ✅ Reserve parking slots with time picker
+- ✅ View personal reservations (Ongoing / Completed / Cancelled tabs)
+- ✅ Real-time countdown timer with circular progress
+- ✅ Extend parking time (15 / 30 / 60 min) with cost preview
+- ✅ View digital ticket with QR code
+- ✅ Cancel future reservations
+- ✅ Delete completed/cancelled reservation history
 - ✅ Email notifications for confirmations and cancellations
 
 ### Admin Features
 - ✅ Create and manage parking areas
-- ✅ Create and manage parking slots
-- ✅ Update slot status
-- ✅ View all reservations
+- ✅ Create and manage parking slots (section, type, floor, pricing)
+- ✅ Filter slots by parking area
+- ✅ View all reservations with user details
 - ✅ Cancel reservations manually
-- ✅ Search parking areas
+- ✅ Expire overdue reservations
+- ✅ Search parking areas with pagination
 
 ### Security
 - ✅ JWT-based authentication
-- ✅ Role-based access control (RBAC)
+- ✅ Role-based access control (RBAC) with guards
 - ✅ Password hashing with bcrypt
-- ✅ Protected routes with guards
+- ✅ Server-side price calculation (`totalPrice` stored per reservation)
+- ✅ Protected backend routes with JWT + RolesGuard
+- ✅ Frontend route protection via middleware (cookie-based)
 - ✅ Email verification for password reset
 
 ---
@@ -410,6 +526,8 @@ MAIL_PASS=your_app_password
 ```bash
 createdb smart_parking
 ```
+
+> **Note**: The app uses TypeORM `synchronize: true`, so tables are auto-created on first startup. An admin user (`admin@admin.com` / `admin`) is auto-seeded.
 
 ### Frontend Setup
 
@@ -448,8 +566,8 @@ npm run start:prod
 
 **Run Tests**
 ```bash
-npm run test
-npm run test:e2e
+npm run test          # Unit tests
+npm run test:e2e      # E2E tests
 ```
 
 ### Frontend
@@ -488,4 +606,4 @@ For support or questions, please open an issue on GitHub.
 
 ---
 
-**Last Updated**: May 2026
+**Last Updated**: July 2026
