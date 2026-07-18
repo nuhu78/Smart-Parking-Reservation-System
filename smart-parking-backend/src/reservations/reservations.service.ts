@@ -223,10 +223,7 @@ export class ReservationsService {
     );
     await this.reservationsRepository.save(reservation);
 
-    return this.reservationsRepository.findOne({
-      where: { id: reservation.id },
-      relations: ['slot', 'slot.parkingArea'],
-    });
+    return reservation;
   }
 
   async removeReservation(
