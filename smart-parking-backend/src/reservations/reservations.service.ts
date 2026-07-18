@@ -179,6 +179,56 @@ export class ReservationsService {
     return { message: 'Reservation cancelled and slot freed' };
   }
 
+  async extendReservation(
+    reservationId: number,
+    userId: number,
+    additionalMinutes: number,
+  ): Promise<Reservation> {
+    const reservation = await this.reservationsRepository.findOne({
+      where: {
+        id: reservationId,
+        user: { id: userId },
+        status: ReservationStatus.ACTIVE,
+      },
+      relations: ['slot', 'slot.parkingArea'],
+    });
+
+    if (!reservation) {
+      throw new NotFoundException('Active reservation not found');
+    }
+
+    if (new Date(reservation.endTime) <= new Date()) {
+      throw new BadRequestException(
+        'Cannot extend a reservation that has already ended',
+      );
+    }
+
+    if (additionalMinutes <= 0) {
+      throw new BadRequestException('Additional minutes must be positive');
+    }
+
+    const maxExtension = 4 * 60;
+    const currentDuration =
+      (new Date(reservation.endTime).getTime() -
+        new Date(reservation.startTime).getTime()) /
+      (1000 * 60);
+    if (currentDuration + additionalMinutes > maxExtension) {
+      throw new BadRequestException(
+        `Maximum total reservation duration is ${maxExtension} minutes`,
+      );
+    }
+
+    reservation.endTime = new Date(
+      reservation.endTime.getTime() + additionalMinutes * 60 * 1000,
+    );
+    await this.reservationsRepository.save(reservation);
+
+    return this.reservationsRepository.findOne({
+      where: { id: reservation.id },
+      relations: ['slot', 'slot.parkingArea'],
+    });
+  }
+
   async removeReservation(
     reservationId: number,
     userId: number,

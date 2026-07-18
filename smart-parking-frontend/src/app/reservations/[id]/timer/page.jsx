@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
-import { ArrowLeft, Car, Clock } from 'lucide-react';
+import { ArrowLeft, Car, Clock, Plus } from 'lucide-react';
 
 const CIRCUMFERENCE = 2 * Math.PI * 90;
 
@@ -26,6 +26,8 @@ export default function ParkingTimerPage() {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
+  const [extendModal, setExtendModal] = useState(false);
+  const [extending, setExtending] = useState(false);
 
   const fetchReservation = useCallback(async () => {
     try {
@@ -57,6 +59,24 @@ export default function ParkingTimerPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [reservation]);
+
+  const handleExtend = async (minutes) => {
+    try {
+      setExtending(true);
+      const res = await api.patch(`/reservations/${id}/extend`, { additionalMinutes: minutes });
+      const updated = res.data;
+      setReservation(updated);
+      const end = new Date(updated.endTime).getTime();
+      const total = end - new Date(updated.startTime).getTime();
+      setTotalDuration(total);
+      setTimeLeft((prev) => prev + minutes * 60 * 1000);
+      setExtendModal(false);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to extend parking time');
+    } finally {
+      setExtending(false);
+    }
+  };
 
   const hours = Math.floor(timeLeft / (1000 * 60 * 60));
   const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
@@ -182,8 +202,12 @@ export default function ParkingTimerPage() {
           </div>
         </div>
 
-        <button className="btn-primary w-full text-sm" disabled={timeLeft <= 0}>
-          Expand Parking Time
+        <button
+          onClick={() => setExtendModal(true)}
+          className="btn-primary w-full text-sm"
+          disabled={timeLeft <= 0}
+        >
+          <Plus size={16} className="mr-1.5" /> Expand Parking Time
         </button>
 
         {timeLeft <= 0 && (
@@ -192,6 +216,36 @@ export default function ParkingTimerPage() {
           </p>
         )}
       </div>
+
+      {extendModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="card-dark p-6 w-full max-w-sm mx-4">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-2">Extend Parking Time</h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-5">
+              Choose how much longer you need.
+            </p>
+            <div className="space-y-3">
+              {[15, 30, 60].map((mins) => (
+                <button
+                  key={mins}
+                  onClick={() => handleExtend(mins)}
+                  disabled={extending}
+                  className="w-full py-3 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] hover:border-[var(--accent-purple)] transition font-medium text-sm disabled:opacity-50"
+                >
+                  {extending ? 'Extending...' : `${mins} ${mins === 60 ? 'Hour' : 'Minutes'}`}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setExtendModal(false)}
+              disabled={extending}
+              className="w-full py-2.5 mt-3 rounded-full border border-slate-700/30 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
