@@ -112,6 +112,7 @@ export default function ParkingTimerPage() {
 
   const dur = getDurationHours(reservation.startTime, reservation.endTime);
   const totalPrice = reservation.totalPrice ? Number(reservation.totalPrice).toFixed(2) : null;
+  const hourlyRate = parseFloat(reservation.slot?.pricePerHour ?? reservation.slot?.parkingArea?.pricePerHour ?? 0);
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 sm:py-10">
@@ -232,16 +233,23 @@ export default function ParkingTimerPage() {
               Choose how much longer you need.
             </p>
             <div className="space-y-3">
-              {[15, 30, 60].map((mins) => (
-                <button
-                  key={mins}
-                  onClick={() => handleExtend(mins)}
-                  disabled={extending}
-                  className="w-full py-3 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] hover:border-[var(--accent-purple)] transition font-medium text-sm disabled:opacity-50"
-                >
-                  {extending ? 'Extending...' : `${mins} ${mins === 60 ? 'Hour' : 'Minutes'}`}
-                </button>
-              ))}
+              {[15, 30, 60].map((mins) => {
+                const extCost = hourlyRate > 0 ? (hourlyRate * mins / 60).toFixed(2) : null;
+                const label = mins < 60 ? `${mins} Minutes` : '1 Hour';
+                return (
+                  <button
+                    key={mins}
+                    onClick={() => handleExtend(mins)}
+                    disabled={extending}
+                    className="w-full py-3 rounded-full bg-[var(--bg-primary)] border border-slate-700/30 text-[var(--text-primary)] hover:border-[var(--accent-purple)] transition font-medium text-sm disabled:opacity-50"
+                  >
+                    <span className="flex items-center justify-between px-2">
+                      <span>{extending ? 'Extending...' : label}</span>
+                      {extCost && <span className="text-[var(--accent-yellow)] font-bold">+${extCost}</span>}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
             <button
               onClick={() => setExtendModal(false)}
