@@ -111,6 +111,7 @@ export default function ParkingTimerPage() {
   }
 
   const dur = getDurationHours(reservation.startTime, reservation.endTime);
+  const totalPrice = reservation.totalPrice ? Number(reservation.totalPrice).toFixed(2) : null;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 sm:py-10">
@@ -188,6 +189,12 @@ export default function ParkingTimerPage() {
             <span className="text-[var(--text-secondary)]">Duration</span>
             <span className="text-[var(--text-primary)] font-medium text-right">{dur} hour{dur !== 1 ? 's' : ''}</span>
           </div>
+          {totalPrice && (
+            <div className="flex justify-between">
+              <span className="text-[var(--text-secondary)]">Total Bill</span>
+              <span className="text-[var(--accent-yellow)] font-bold text-right">${totalPrice}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-[var(--text-secondary)]">Parking Slot</span>
             <span className="text-[var(--text-primary)] font-medium text-right">{reservation.slot?.slotNumber || '—'}</span>

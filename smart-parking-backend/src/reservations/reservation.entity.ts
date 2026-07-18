@@ -42,6 +42,14 @@ export class Reservation {
   phoneNumber?: string;
 
   @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  totalPrice?: number;
+
+  @Column({
     type: 'enum',
     enum: VehicleType,
     default: VehicleType.FOUR_WHEELER,

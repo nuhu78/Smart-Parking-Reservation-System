@@ -130,10 +130,7 @@ export default function MyReservations() {
           {filtered.map((res) => {
             const isExpanded = expandedId === res.id;
             const dur = getDurationHours(res.startTime, res.endTime);
-            const effectivePrice = res.slot?.pricePerHour ?? res.slot?.parkingArea?.pricePerHour;
-            const price = effectivePrice
-              ? (parseFloat(effectivePrice) * dur).toFixed(2)
-              : null;
+            const price = res.totalPrice ? Number(res.totalPrice).toFixed(2) : null;
             const badge = getBadge(res.status, res.createdAt);
             const isCancellable = res.status === 'active' && new Date(res.startTime) > new Date();
 

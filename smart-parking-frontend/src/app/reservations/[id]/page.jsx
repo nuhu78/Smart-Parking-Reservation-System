@@ -68,8 +68,7 @@ export default function ParkingTicketPage() {
   }
 
   const dur = getDurationHours(reservation.startTime, reservation.endTime);
-  const effectivePrice = reservation.slot?.pricePerHour ?? reservation.slot?.parkingArea?.pricePerHour;
-  const totalPrice = effectivePrice ? (parseFloat(effectivePrice) * dur).toFixed(2) : null;
+  const totalPrice = reservation.totalPrice ? Number(reservation.totalPrice).toFixed(2) : null;
   const qrData = JSON.stringify({
     id: reservation.id,
     slot: reservation.slot?.slotNumber,

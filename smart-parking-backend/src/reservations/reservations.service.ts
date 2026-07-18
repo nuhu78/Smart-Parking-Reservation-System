@@ -73,6 +73,14 @@ export class ReservationsService {
 
     const expiresAt = new Date(startTime.getTime() + 30 * 60 * 1000);
 
+    const pricePerHour =
+      slot.pricePerHour ?? slot.parkingArea?.pricePerHour ?? 0;
+    const durationHours =
+      (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+    const totalPrice = pricePerHour
+      ? parseFloat((pricePerHour as any)) * durationHours
+      : undefined;
+
     const reservation = this.reservationsRepository.create({
       user: { id: user.id },
       slot: { id: slotId },
@@ -83,6 +91,7 @@ export class ReservationsService {
       vehicleNumber,
       phoneNumber: phoneNumber || undefined,
       vehicleType: (vehicleType as any) || 'four_wheeler',
+      totalPrice,
     });
 
     await this.reservationsRepository.save(reservation);
@@ -221,6 +230,18 @@ export class ReservationsService {
     reservation.endTime = new Date(
       reservation.endTime.getTime() + additionalMinutes * 60 * 1000,
     );
+
+    const pricePerHour =
+      reservation.slot?.pricePerHour ??
+      reservation.slot?.parkingArea?.pricePerHour ??
+      0;
+    const durationHours =
+      (reservation.endTime.getTime() - reservation.startTime.getTime()) /
+      (1000 * 60 * 60);
+    reservation.totalPrice = pricePerHour
+      ? parseFloat((pricePerHour as any)) * durationHours
+      : undefined;
+
     await this.reservationsRepository.save(reservation);
 
     return reservation;
