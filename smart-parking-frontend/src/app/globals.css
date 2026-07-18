@@ -36,7 +36,12 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg-primary);
+  background:
+    linear-gradient(rgba(13, 13, 13, 0.82), rgba(13, 13, 13, 0.82)),
+    url('/background.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
 }
