@@ -105,7 +105,7 @@ function ResetPasswordForm() {
                     required: 'Code is required',
                     minLength: { value: 6, message: 'Code must be 6 digits' },
                   })}
-                  className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-center tracking-widest text-lg font-bold"
+                  className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-center tracking-widest text-lg font-bold text-slate-900"
                 />
                 {errors.code && <p className="text-red-500 text-xs mt-1 ml-2">{errors.code.message}</p>}
               </div>
@@ -118,7 +118,7 @@ function ResetPasswordForm() {
                     required: 'New password is required',
                     minLength: { value: 6, message: 'Minimum 6 characters' },
                   })}
-                  className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                  className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900"
                   placeholder="At least 6 characters"
                 />
                 {errors.newPassword && <p className="text-red-500 text-xs mt-1 ml-2">{errors.newPassword.message}</p>}
@@ -132,7 +132,7 @@ function ResetPasswordForm() {
                     required: 'Please confirm your password',
                     validate: (value) => value === newPassword || 'Passwords do not match',
                   })}
-                  className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                  className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900"
                   placeholder="Repeat your password"
                 />
                 {errors.confirmPassword && <p className="text-red-500 text-xs mt-1 ml-2">{errors.confirmPassword.message}</p>}

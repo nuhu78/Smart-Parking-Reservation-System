@@ -82,7 +82,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 {...register('email', { required: 'Email is required' })}
-                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900"
                 placeholder="you@example.com"
               />
               {errors.email && <p className="text-red-500 text-xs mt-1 ml-2">{errors.email.message}</p>}
@@ -93,7 +93,7 @@ export default function LoginPage() {
               <input
                 type="password"
                 {...register('password', { required: 'Password is required' })}
-                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900"
                 placeholder="Enter your password"
               />
               {errors.password && <p className="text-red-500 text-xs mt-1 ml-2">{errors.password.message}</p>}

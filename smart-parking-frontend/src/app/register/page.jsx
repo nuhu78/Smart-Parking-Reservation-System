@@ -51,7 +51,7 @@ export default function RegisterPage() {
               <input
                 type="text"
                 {...register('fullName', { required: 'Full name is required' })}
-                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900"
                 placeholder="John Doe"
               />
               {errors.fullName && <p className="text-red-500 text-xs mt-1 ml-2">{errors.fullName.message}</p>}
@@ -62,7 +62,7 @@ export default function RegisterPage() {
               <input
                 type="email"
                 {...register('email', { required: 'Email is required' })}
-                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900"
                 placeholder="you@example.com"
               />
               {errors.email && <p className="text-red-500 text-xs mt-1 ml-2">{errors.email.message}</p>}
@@ -73,7 +73,7 @@ export default function RegisterPage() {
               <input
                 type="password"
                 {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Min 6 characters' } })}
-                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm"
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900"
                 placeholder="At least 6 characters"
               />
               {errors.password && <p className="text-red-500 text-xs mt-1 ml-2">{errors.password.message}</p>}

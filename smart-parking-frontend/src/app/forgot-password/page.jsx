@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
                 type="email"
                 disabled={isLoading || message}
                 {...register('email', { required: 'Email is required' })}
-                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm disabled:bg-slate-50"
+                className="w-full px-4 py-2.5 rounded-full border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:border-transparent text-sm text-slate-900 disabled:bg-slate-50"
                 placeholder="you@example.com"
               />
               {errors.email && <p className="text-red-500 text-xs mt-1 ml-2">{errors.email.message}</p>}
