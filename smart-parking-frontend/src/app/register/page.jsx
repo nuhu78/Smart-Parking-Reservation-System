@@ -37,6 +37,9 @@ export default function RegisterPage() {
             </div>
             <h2 className="text-xl font-bold text-slate-800">Create an Account</h2>
             <p className="text-slate-500 text-sm mt-1">Join SmartPark today</p>
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 text-left leading-relaxed">
+              This application is hosted on a free server. If the app has been inactive, the server may enter sleep mode. Your first request may take 30–60 seconds to load. Thank you for your patience.
+            </div>
           </div>
 
           {errorMsg && (

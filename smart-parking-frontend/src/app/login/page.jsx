@@ -68,6 +68,9 @@ export default function LoginPage() {
             </div>
             <h2 className="text-xl font-bold text-slate-800">Welcome Back</h2>
             <p className="text-slate-500 text-sm mt-1">Sign in to your account</p>
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 text-left leading-relaxed">
+              This application is hosted on a free server. If the app has been inactive, the server may enter sleep mode. Your first request may take 30–60 seconds to load. Thank you for your patience.
+            </div>
           </div>
 
           {errorMsg && (
