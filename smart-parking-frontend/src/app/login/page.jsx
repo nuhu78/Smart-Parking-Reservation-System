@@ -72,7 +72,7 @@ export default function LoginPage() {
               This app is hosted on a free server. If the app has been inactive, the server may enter sleep mode. Your first request may take 30–60 seconds to load. Thank you for your patience.
             </div>
             <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 text-left leading-relaxed">
-              <strong>Admin Demo:</strong> admin@admin.com / admin
+              To visit the user dashboard, you need to register first. To visit the admin page, use admin@admin.com / admin
             </div>
           </div>
 
